@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>01. 微控制器基礎 (MCU Basics) - IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="STM32 決策大腦與 ESP32 通訊前哨之雙晶片協同分工架構。">
+
+  <!-- Google Fonts: 日系圓體、思源黑體與 JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --paper-bg: #F8F5EE;
+      --card-bg: #FFFDF8;
+      --ink: #1E293B;
+      --ink-muted: #5F6D76;
+      --pcb-teal: #1F7A76;
+      --pcb-teal-soft: #D9ECE9;
+      --kapton-amber: #EAA053;
+      --ribbon-blue: #457B9D;
+      --highlighter: #FBE083;
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- 頂部導覽列 -->
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] px-4 sm:px-8 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-[#1F7A76] text-white flex items-center justify-center font-black text-sm border-2 border-[#1E293B]">
+            W1
+          </span>
+          <span class="font-black text-[#1E293B] text-base" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+        </a>
+      </div>
+      <div class="flex items-center gap-3 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="index.html" class="px-2.5 py-1 text-[#5F6D76] hover:text-[#1E293B]">
+          ⬅ 返回目錄
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+          <span>🎯</span>
+          <span>播放簡報</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 內文主體 -->
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <article class="lab-card p-6 sm:p-10 mb-8">
+      <span class="tape-kapton"></span>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1F7A76] text-white border-2 border-[#1E293B]">
+          WIKI-01
+        </span>
+        <span class="text-xs text-[#5F6D76]">邊緣運算與嵌入式硬體</span>
+        <span class="text-xs text-[#5F6D76]">・ 更新日期：2026-11-19</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+        01. 微控制器基礎 <span class="u">(MCU Basics)</span>
+      </h1>
+      <div class="ruler-divider"></div>
+
+      <!-- Overview 便籤 -->
+      <div class="bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4 mb-8 text-sm">
+        <strong>Overview 簡介：</strong>
+        MCU 是一種把 CPU、記憶體與多種硬體介面整合在單一晶片上的微型電腦系統，以極低功耗與微秒級中斷反應精確執行硬體控制任務。
+      </div>
+
+      <!-- 核心章節 1 -->
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">1. 核心概念 (Core Concepts)</h2>
+      <p class="text-sm text-[#5F6D76] leading-relaxed mb-6">
+        與一般的個人電腦處理器（如 Intel Core 或 AMD Ryzen）追求極致多工運算不同，微控制器的設計目標是為了在<strong>低功耗、微型體積、高穩定性與高即時性（Real-time）</strong>的要求下，精準執行特定的硬體監控與控制任務。
+      </p>
+
+      <!-- 核心章節 2 -->
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">2. 本案例架構中的協同分工 (Dual-MCU)</h2>
+      <p class="text-sm text-[#5F6D76] leading-relaxed mb-4">
+        在智慧空氣品質監測與自動通風控制系統中，單一 MCU 往往難以兼顧「高頻即時演算法運算」與「無線網路封包收發」。因此，本專案採用 <strong>STM32 + ESP32 雙微控制器協同架構</strong>：
+      </p>
+
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-6 leading-relaxed"><code>+-------------------------------------------------------------+
+|                     系統運作架構                            |
+|                                                             |
+|   [ SPS30 / SHT20 ]                                         |
+|          │ (I2C/UART)                                       |
+|          ▼                                                  |
+|   [ ESP32 通訊與數據前哨 ] ──(UART 原始封包)──▶ [ STM32 主控中樞 ]  |
+|          │                                     │            |
+|          ▼ (Wi-Fi / MQTT)                      ▼ (PWM / Relay)
+|     雲端 / 網頁看板                      抽風馬達 / 警報閥門  |
++-------------------------------------------------------------+</code></pre>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-sm text-[#1E293B] mb-1">STM32：系統主軸與決策大腦</h4>
+          <p class="text-xs text-[#5F6D76] leading-relaxed">
+            基於 ARM Cortex-M 核心，擁有極強的硬體中斷反應速度與高階定時器（TIM PWM）。負責運行滑模控制（SMC）演算法，計算受控環境的風門開度與安全保護。
+          </p>
+        </div>
+        <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-sm text-[#1F7A76] mb-1">ESP32：感測前線與通訊助手</h4>
+          <p class="text-xs text-[#5F6D76] leading-relaxed">
+            內建 Wi-Fi 與 BLE 雙模通訊模組。負責週期性向 PM2.5 感測器（SPS30）讀取數據、執行滑動均值濾波，並將乾淨數據透過 MQTT 發布至外部網路。
+          </p>
+        </div>
+      </div>
+
+      <!-- 核心章節 3: 規格表 -->
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">3. 技術參數與硬體比較</h2>
+      <div class="overflow-x-auto mb-8">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm border-2 border-[#1E293B] rounded-xl overflow-hidden">
+          <thead>
+            <tr class="bg-[#1E293B] text-white">
+              <th class="p-3">比較項目</th>
+              <th class="p-3">STM32F401 / F411 系列</th>
+              <th class="p-3">ESP32-WROOM-32 系列</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#D8D2C4] bg-[#FFFDF8]">
+            <tr>
+              <td class="p-3 font-bold">CPU 核心架構</td>
+              <td class="p-3">ARM 32-bit Cortex-M4 (含 FPU)</td>
+              <td class="p-3">Dual-core Xtensa 32-bit LX6</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">時脈速度</td>
+              <td class="p-3">84 MHz ~ 100 MHz</td>
+              <td class="p-3">高達 240 MHz</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">無線通訊支援</td>
+              <td class="p-3">無（需外接模組）</td>
+              <td class="p-3">內建 2.4 GHz Wi-Fi & Bluetooth 4.2 / BLE</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">硬體即時中斷</td>
+              <td class="p-3">極快且確定性高（適合硬體閉迴路控制）</td>
+              <td class="p-3">易受 Wi-Fi 協定棧任務搶佔中斷影響</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">本案配置任務</td>
+              <td class="p-3">演算法運算、PWM 輸出、安全連鎖閥</td>
+              <td class="p-3">感測器輪詢、JSON 封包打包、MQTT 傳送</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 核心章節 4: 比喻 -->
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">4. 新手生活化比喻 (Novice Analogy)</h2>
+      <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-xs sm:text-sm leading-relaxed text-[#1E293B]">
+        <strong class="text-[#EAA053] text-base block mb-1">💡 指揮官與偵察兵的默契搭檔：</strong>
+        <p class="mb-2"><strong>STM32 就像「作戰司令部的總指揮官」</strong>：不親自跑去前線看灰塵，而是坐在辦公室裡緊盯全局。他專注於分析情報、運行複雜的戰術演算法，並隨時決定排風機應該開幾趴轉速。</p>
+        <p><strong>ESP32 則是「前線偵察兵兼通訊特派員」</strong>：身上背著無線電（Wi-Fi），拿著望遠鏡（感測器）在空氣品質第一線巡邏。他把量到的髒空氣數值拍電報回傳給指揮官，同時向總部雲端發布即時快訊。</p>
+      </div>
+
+    </article>
+
+    <!-- 頁面導航 -->
+    <div class="flex justify-between items-center text-xs sm:text-sm font-bold">
+      <a href="index.html" class="btn-techo px-4 py-2 bg-[#FFFDF8] rounded-xl text-[#1E293B]">
+        ⬅ 返回目錄總覽
+      </a>
+      <a href="02-env-sensors.html" class="btn-techo px-4 py-2 bg-[#1F7A76] text-white rounded-xl">
+        下一篇：02. 環境感測器 ➔
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-center text-xs text-[#7A8E9B]">
+    IoT &amp; Embedded Wiki ・ 國立臺中科技大學 資工四A 王庭翊
+  </footer>
+
+</body>
+</html>
+

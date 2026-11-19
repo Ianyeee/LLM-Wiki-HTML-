@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>03. MQTT 物聯網通訊協定 - IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="MQTT 輕量發布/訂閱協定、Broker 轉運站、Topic 萬用字元與 QoS 等級。">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --paper-bg: #F8F5EE;
+      --card-bg: #FFFDF8;
+      --ink: #1E293B;
+      --ink-muted: #5F6D76;
+      --pcb-teal: #1F7A76;
+      --pcb-teal-soft: #D9ECE9;
+      --kapton-amber: #EAA053;
+      --ribbon-blue: #457B9D;
+      --highlighter: #FBE083;
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] px-4 sm:px-8 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-[#457B9D] text-white flex items-center justify-center font-black text-sm border-2 border-[#1E293B]">
+            W3
+          </span>
+          <span class="font-black text-[#1E293B] text-base" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+        </a>
+      </div>
+      <div class="flex items-center gap-3 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="index.html" class="px-2.5 py-1 text-[#5F6D76] hover:text-[#1E293B]">
+          ⬅ 返回目錄
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+          <span>🎯</span>
+          <span>播放簡報</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <article class="lab-card p-6 sm:p-10 mb-8">
+      <span class="tape-kapton"></span>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#457B9D] text-white border-2 border-[#1E293B]">
+          WIKI-03
+        </span>
+        <span class="text-xs text-[#5F6D76]">網路通訊與訊息佇列</span>
+        <span class="text-xs text-[#5F6D76]">・ 更新日期：2026-11-19</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+        03. MQTT 物聯網通訊協定 <span class="u">(MQTT Pub/Sub)</span>
+      </h1>
+      <div class="ruler-divider"></div>
+
+      <div class="bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4 mb-8 text-sm">
+        <strong>Overview 簡介：</strong>
+        MQTT 是一種專為物聯網量身打造的極輕量發布/訂閱通訊協定，固定標頭僅需 2 Bytes，藉由 Broker 中轉訊息，徹底解耦硬體端與接收端。
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">1. 發布與訂閱（Pub/Sub）架構</h2>
+      <p class="text-sm text-[#5F6D76] leading-relaxed mb-4">
+        MQTT 打破了傳統 HTTP 一對一連線的依賴，透過發布者、代理伺服器（Broker）與訂閱者三者解耦運作：
+      </p>
+
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-6 leading-relaxed"><code>+-------------------------------------------------------------------------+
+|                        MQTT 發布與訂閱架構圖                            |
+|                                                                         |
+|  [發布者 Publisher]                                                     |
+|    ESP32 感測節點 ──▶ 發送至 Topic: "lab/roomA/env" ──┐                 |
+|                                                      ▼                  |
+|                                            +------------------+         |
+|                                            |   MQTT Broker    |         |
+|                                            | (Mosquitto/EMQX) |         |
+|                                            +------------------+         |
+|                                                      │                  |
+|               ┌──────────────────────────────────────┴───────────────┐  |
+|               ▼                                                      ▼  |
+|      [訂閱者 Subscriber 1]                                 [訂閱者 Subscriber 2] |
+|       前端網頁 (Web Dashboard)                                Raspberry Pi 閘道器 |
+|   (訂閱 "lab/+/env"，即時畫圖)                             (訂閱 "lab/#"，存資料庫) |
++-------------------------------------------------------------------------+</code></pre>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-center">
+          <h4 class="font-bold text-xs text-[#1E293B] mb-1">Publisher 發布者</h4>
+          <p class="text-[11px] text-[#5F6D76]">ESP32 推送訊息給指定 Topic，完全無需在乎誰在接收。</p>
+        </div>
+        <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl text-center">
+          <h4 class="font-bold text-xs text-[#1F7A76] mb-1">Broker 訊息中轉站</h4>
+          <p class="text-[11px] text-[#5F6D76]">Mosquitto 維護連線，精準分發訊息給有訂閱該主題的客戶端。</p>
+        </div>
+        <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl text-center">
+          <h4 class="font-bold text-xs text-[#457B9D] mb-1">Subscriber 訂閱者</h4>
+          <p class="text-[11px] text-[#5F6D76]">瀏覽器登記主題，一旦有新資料即刻收到被動推播。</p>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">2. QoS 服務品質等級比較</h2>
+      <div class="overflow-x-auto mb-8">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm border-2 border-[#1E293B] rounded-xl overflow-hidden">
+          <thead>
+            <tr class="bg-[#1E293B] text-white">
+              <th class="p-3">QoS 等級</th>
+              <th class="p-3">運作機制</th>
+              <th class="p-3">頻寬負擔</th>
+              <th class="p-3">適用情境</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#D8D2C4] bg-[#FFFDF8]">
+            <tr>
+              <td class="p-3 font-bold">QoS 0 (最多送達一次)</td>
+              <td class="p-3">射後不理，無 ACK 確認</td>
+              <td class="p-3">最低 (標頭小)</td>
+              <td class="p-3">高頻感測數據 (如每秒 PM2.5 採樣)</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">QoS 1 (至少送達一次)</td>
+              <td class="p-3">需 PubAck 回應，超時重發</td>
+              <td class="p-3">中等</td>
+              <td class="p-3">關鍵警報與閥門狀態通知</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">QoS 2 (剛好送達一次)</td>
+              <td class="p-3">四次交握確認，絕不重複</td>
+              <td class="p-3">最高</td>
+              <td class="p-3">工業精密機台啟動、金融交易</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">3. 新手生活化比喻 (Novice Analogy)</h2>
+      <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-xs sm:text-sm leading-relaxed text-[#1E293B]">
+        <strong class="text-[#EAA053] text-base block mb-1">💡 就像 YouTube 頻道與開啟小鈴鐺：</strong>
+        <p class="mb-2"><strong>發布者（Publisher = YouTuber）</strong>：創作者拍好影片後，直接上傳到自己的頻道（Topic）。他不用逐一打電話通知 50 萬名粉絲「我發片囉！」。</p>
+        <p class="mb-2"><strong>Broker（YouTube 伺服器平台）</strong>：平台負責維護整個頻道的內容庫與龐大的追隨者名單。</p>
+        <p><strong>訂閱者（Subscriber = 開啟小鈴鐺的觀眾）</strong>：你只要按下訂閱某頻道，一旦有新影片發布，平台伺服器就會「主動跳出推播通知」送到你的手機螢幕上。</p>
+      </div>
+
+    </article>
+
+    <div class="flex justify-between items-center text-xs sm:text-sm font-bold">
+      <a href="02-env-sensors.html" class="btn-techo px-4 py-2 bg-[#FFFDF8] rounded-xl text-[#1E293B]">
+        ⬅ 上一篇：02. 環境感測器
+      </a>
+      <a href="04-json-format.html" class="btn-techo px-4 py-2 bg-[#1F7A76] text-white rounded-xl">
+        下一篇：04. JSON 格式 ➔
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-center text-xs text-[#7A8E9B]">
+    IoT &amp; Embedded Wiki ・ 國立臺中科技大學 資工四A 王庭翊
+  </footer>
+
+</body>
+</html>
+

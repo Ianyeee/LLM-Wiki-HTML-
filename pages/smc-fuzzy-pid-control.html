@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>滑模控制 (SMC) 與自適應模糊 PID 實作 - IoT &amp; Embedded Wiki</title>
+  
+  <!-- Google Fonts: 導入日系圓體、思源黑體與 JetBrains Mono 等寬代碼字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      /* 基底紙本色系 (Engineering Paper) */
+      --paper-bg: #F8F5EE;          /* 燕麥工程圖紙底色 */
+      --card-bg: #FFFDF8;           /* 手帳紙白卡片 */
+      --ink: #1E293B;               /* 石墨深藍黑 (主線條、標題與文字) */
+      --ink-muted: #5F6D76;         /* 說明副文字灰 */
+
+      /* 專屬硬體標籤與膠帶色彩 */
+      --pcb-teal: #1F7A76;          /* PCB 電路板松石綠 (主題品牌色) */
+      --pcb-teal-soft: #D9ECE9;     /* 淺松綠標籤底色 */
+      --kapton-amber: #EAA053;      /* 金手指耐熱膠帶琥珀金 */
+      --ribbon-blue: #457B9D;       /* 杜邦排線藍 */
+      --highlighter: #FBE083;       /* 工程螢光筆劃線黃 */
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    /* 24px 精密工程方格底紙 */
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    /* 螢光筆劃記標記效果 */
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 6px;
+      border-radius: 2px;
+    }
+
+    /* 工程刻度分隔線 */
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    /* 專屬金手指耐熱膠帶效果 */
+    .tape-kapton {
+      position: absolute;
+      top: -14px;
+      left: 28px;
+      width: 110px;
+      height: 28px;
+      background: var(--kapton-amber);
+      opacity: 0.82;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    /* 手帳風粗框與硬陰影面版 */
+    .lab-panel {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 20px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.14);
+    }
+
+    /* 便籤提示小卡 */
+    .note-dash {
+      background: #FFFDF8;
+      border: 2px dashed #1F7A76;
+      border-radius: 16px;
+      padding: 16px 20px;
+    }
+
+    /* 腳位表格樣式 */
+    .lab-table th {
+      background: var(--pcb-teal-soft);
+      color: var(--ink);
+      font-family: var(--round);
+      font-weight: 800;
+      border-bottom: 2px solid var(--ink);
+      padding: 12px 16px;
+    }
+    .lab-table td {
+      padding: 12px 16px;
+      border-bottom: 1px dashed #D8D2C4;
+    }
+    .lab-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    code, pre {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+  <!-- 頂部導覽列 (Navbar，路徑相對性為 ../index.html) -->
+  <nav class="bg-[#FFFDF8]/90 border-b-[2.5px] border-[#1E293B] sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-5xl mx-auto px-5 sm:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Brand Logo & Name -->
+      <a href="../index.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-[#1F7A76] border-2 border-[#1E293B] flex items-center justify-center text-white text-lg shadow-[2px_2px_0_#1E293B] group-hover:rotate-6 transition-transform">
+          ⚡
+        </div>
+        <div>
+          <span class="block font-black text-[#1E293B] text-lg sm:text-xl tracking-tight" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+          <span class="block font-bold text-[#1F7A76] text-xs tracking-wider" style="font-family:var(--round)">
+            電路實驗手帳・工程知識庫
+          </span>
+        </div>
+      </a>
+
+      <!-- 導覽連結 -->
+      <div class="flex items-center space-x-2 sm:space-x-5 text-sm sm:text-base font-extrabold" style="font-family:var(--round)">
+        <a href="../index.html" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          Home
+        </a>
+        <a href="../index.html#mcu" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          MCU
+        </a>
+        <a href="../index.html#protocols" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          Protocols
+        </a>
+        <a href="../index.html#algorithms" class="text-[#1E293B] bg-[#FBE083] border-2 border-[#1E293B] px-3 py-1 rounded-lg shadow-[2px_2px_0_rgba(30,41,59,0.15)] transition-all">
+          Algorithms
+        </a>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- 內容主體 (符合 AGENTS.md 限制最大寬度 max-w-4xl mx-auto) -->
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <!-- 麵包屑導覽 (Breadcrumbs) -->
+    <nav class="text-xs font-bold text-[#7A8E9B] mb-6 flex items-center space-x-2" style="font-family:var(--round)">
+      <a href="../index.html" class="hover:text-[#1E293B] transition-colors">首頁</a>
+      <span>/</span>
+      <a href="../index.html#algorithms" class="hover:text-[#1E293B] transition-colors">Algorithms</a>
+      <span>/</span>
+      <span class="text-[#1E293B]">SMC &amp; Fuzzy PID</span>
+    </nav>
+
+    <!-- 1. 主標題 (<h1> - 嚴格遵守規範順序) -->
+    <header class="mb-8">
+      <div class="inline-flex items-center gap-2 bg-[#FBE083] border-2 border-[#1E293B] px-3.5 py-1 rounded-full text-xs font-black text-[#1E293B] mb-3 shadow-[2px_2px_0_rgba(30,41,59,0.1)]" style="font-family:var(--round)">
+        <span>📐</span> 控制演算法實作手冊
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-[#1E293B] leading-[1.3] tracking-tight" style="font-family:var(--round)">
+        滑模控制 (SMC) 與自適應 <span class="u">模糊 PID</span> 馬達伺服實作
+      </h1>
+    </header>
+
+    <!-- 2. Overview (簡介 - 嚴格遵守規範順序，一句話實作目標) -->
+    <section class="mb-12">
+      <div class="lab-panel p-6 sm:p-7">
+        <span class="tape-kapton"></span>
+        <h2 class="text-xs font-black uppercase tracking-wider text-[#1F7A76] mb-2" style="font-family:var(--round)">
+          ✦ Overview
+        </h2>
+        <p class="text-base sm:text-lg text-[#1E293B] font-bold leading-relaxed" style="font-family:var(--round)">
+          本頁面說明如何在 STM32 微控制器上實作滑模控制（SMC）結合模糊推理（Fuzzy Logic），透過動態調節控制增益與飽和函數邊界層，實現兼具抗負載擾動與無抖振（Chattering-free）的精準馬達位置伺服控制。
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. Hardware / Software Requirements (軟硬體需求 - 嚴格遵守規範順序，無序清單 <ul>) -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Hardware / Software Requirements
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+
+      <div class="lab-panel p-6">
+        <span class="tape-kapton" style="left:auto; right:32px; transform:rotate(2deg)"></span>
+        <ul class="space-y-3 text-sm sm:text-base text-[#1E293B]">
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>微控制器主控板</strong>：STM32F407VET6 開發板 (ARM Cortex-M4，具 168MHz 主頻與硬體 FPU 浮點運算器)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>伺服受控馬達</strong>：帶 500 線 AB 相增量式光學編碼器之直流減速馬達 (12V)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>功率驅動模組</strong>：TB6612FNG 雙通道 H 橋馬達驅動模組 (MOSFET 低發熱架構)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>外部直流電源</strong>：12V 5A 直流可調穩壓電源供應器 (供馬達動力使用)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>開發環境與編譯鏈</strong>：STM32CubeIDE (v1.14.0 以上)、GNU Arm Embedded Toolchain</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>演算法驗證工具</strong>：MATLAB / Simulink (Fuzzy Logic Designer 模糊規則庫推導)</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4. Wiring Diagram (接線對應 - 嚴格遵守規範順序，HTML <table>) -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Wiring Diagram (接線對應)
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+      
+      <p class="text-sm text-[#5F6D76] mb-4">
+        STM32F407VET6 腳位與 TB6612FNG 馬達驅動板及編碼器訊號線的硬體連接對應：
+      </p>
+
+      <div class="lab-panel overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm lab-table">
+            <thead>
+              <tr>
+                <th scope="col">MCU Pin (STM32F407)</th>
+                <th scope="col">Driver / Motor Pin</th>
+                <th scope="col">訊號類型</th>
+                <th scope="col">功能說明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">PA8 (TIM1_CH1)</td>
+                <td class="font-mono font-black text-[#1E293B]">PWMA</td>
+                <td><span class="inline-block bg-[#FBE083] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">PWM Output</span></td>
+                <td class="text-[#5F6D76]">20kHz 硬體 PWM 輸出，調節馬達電壓與轉速</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">PC6</td>
+                <td class="font-mono font-black text-[#1E293B]">AIN1</td>
+                <td><span class="inline-block bg-[#D9ECE9] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">GPIO Out</span></td>
+                <td class="text-[#5F6D76]">馬達方向控制邏輯 1 (Direction 1)</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">PC7</td>
+                <td class="font-mono font-black text-[#1E293B]">AIN2</td>
+                <td><span class="inline-block bg-[#D9ECE9] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">GPIO Out</span></td>
+                <td class="text-[#5F6D76]">馬達方向控制邏輯 2 (Direction 2)</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">PA0 (TIM2_CH1)</td>
+                <td class="font-mono font-black text-[#1E293B]">Encoder Phase A</td>
+                <td><span class="inline-block bg-[#D8EBF5] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Encoder Input</span></td>
+                <td class="text-[#5F6D76]">硬體正交編碼器計數通道 A (4 倍頻)</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">PA1 (TIM2_CH2)</td>
+                <td class="font-mono font-black text-[#1E293B]">Encoder Phase B</td>
+                <td><span class="inline-block bg-[#D8EBF5] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Encoder Input</span></td>
+                <td class="text-[#5F6D76]">硬體正交編碼器計數通道 B (4 倍頻)</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">3.3V / GND</td>
+                <td class="font-mono font-black text-[#1E293B]">VCC / GND</td>
+                <td><span class="inline-block bg-[#E8E2D5] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Logic Power</span></td>
+                <td class="text-[#5F6D76]">驅動晶片邏輯供電與共地迴路</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">外部 12V 電源</td>
+                <td class="font-mono font-black text-[#1E293B]">VM / GND</td>
+                <td><span class="inline-block bg-[#FDE2E4] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Motor Power</span></td>
+                <td class="text-[#5F6D76]">馬達大電流高壓驅動專用迴路</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Code Implementation (程式碼實作 - 嚴格遵守規範順序) -->
+    <section class="mb-14">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Code Implementation (C 語言實作)
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+      
+      <p class="text-sm text-[#5F6D76] mb-4">
+        以下程式碼展示於定時中斷（1 kHz 控制迴路）中執行的滑模控制器。包含滑模面切換函式、飽和邊界層消除抖振（Chattering Suppression），以及模糊規則調諧切換增益：
+      </p>
+
+      <div class="lab-panel overflow-hidden border-[2.5px] border-[#1E293B]">
+        <div class="bg-[#1E293B] px-5 py-2.5 flex justify-between items-center text-xs text-[#FFFDF8] font-bold" style="font-family:var(--round)">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-[#EAA053] inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-[#FBE083] inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-[#1F7A76] inline-block"></span>
+            <span class="ml-2 font-mono">smc_fuzzy_controller.c</span>
+          </div>
+          <span class="bg-[#FFFDF8]/15 px-2 py-0.5 rounded text-[#D9ECE9]">STM32 HAL / C99</span>
+        </div>
+        
+        <pre class="bg-gray-800 p-6 overflow-x-auto text-sm font-mono leading-relaxed text-gray-100 rounded-b-lg"><code class="language-c">#include "main.h"
+#include &lt;math.h&gt;
+
+/* 1. 滑模控制 (SMC) 參數結構體定義 */
+typedef struct {
+    float target_pos;      // 目標位置 (脈衝數或弧度)
+    float current_pos;     // 當前編碼器回授位置
+    float error;           // 位置誤差 e = target - current
+    float prev_error;      // 上一次取樣誤差
+    float error_dot;       // 誤差變化率 de/dt
+    
+    float c_param;         // 滑模面斜率參數 (c > 0)
+    float s_surface;       // 滑模面 s = c * e + de
+    float boundary_layer;  // 邊界層厚度 phi (飽和函數，消除抖振)
+    
+    float k_switch;        // 切換控制增益 (由模糊推論動態調節)
+    float k_eq;            // 等效控制項增益
+    float output_pwm;      // 控制輸出 (-1000.0f ~ +1000.0f)
+} SMC_Controller_t;
+
+static SMC_Controller_t motor_smc = {
+    .c_param = 15.0f,
+    .boundary_layer = 1.2f,
+    .k_switch = 250.0f,
+    .k_eq = 0.85f
+};
+
+/* 2. 飽和函數 sat(s / phi)：取代傳統符號函數 sgn(s) 以消除高頻抖振 */
+static float Saturation_Function(float s, float phi) {
+    if (phi &lt;= 0.0001f) phi = 0.0001f;
+    float ratio = s / phi;
+    if (ratio &gt; 1.0f) return 1.0f;
+    if (ratio &lt; -1.0f) return -1.0f;
+    return ratio; // 邊界層內線性連續過渡
+}
+
+/* 3. 簡易單變數模糊推理：依據滑模面距離動態調整切換增益 K_switch */
+static float Fuzzy_Tune_Gain(float abs_s) {
+    // 遠離滑模面時加大增益確保快速收斂；接近滑模面時降低增益以防震盪
+    if (abs_s &gt; 10.0f) {
+        return 380.0f; // Big: 加強強健驅動
+    } else if (abs_s &gt; 3.0f) {
+        return 220.0f; // Medium: 均衡滑動
+    } else {
+        return 90.0f;  // Small: 柔順進入穩態
+    }
+}
+
+/* 4. 1kHz 定時中斷呼叫核心控制器 (取樣週期 dt = 0.001s) */
+void SMC_Controller_Update(float feedback_position, float target_position) {
+    const float dt = 0.001f;
+    
+    // 計算誤差與誤差微分 (可視需求加入低通濾波)
+    motor_smc.target_pos = target_position;
+    motor_smc.current_pos = feedback_position;
+    motor_smc.error = motor_smc.target_pos - motor_smc.current_pos;
+    motor_smc.error_dot = (motor_smc.error - motor_smc.prev_error) / dt;
+    motor_smc.prev_error = motor_smc.error;
+    
+    // 計算滑模面方程式：s = c * e + de
+    motor_smc.s_surface = (motor_smc.c_param * motor_smc.error) + motor_smc.error_dot;
+    
+    // 模糊自適應調整切換項強度
+    motor_smc.k_switch = Fuzzy_Tune_Gain(fabsf(motor_smc.s_surface));
+    
+    // 計算控制律：u = u_eq (等效控制) + u_sw (邊界層切換控制)
+    float u_eq = motor_smc.k_eq * (motor_smc.c_param * motor_smc.error_dot);
+    float u_sw = motor_smc.k_switch * Saturation_Function(motor_smc.s_surface, motor_smc.boundary_layer);
+    
+    float total_u = u_eq + u_sw;
+    
+    // 飽和輸出限幅 (-1000 ~ +1000 對應硬體 PWM 比較值)
+    if (total_u &gt; 1000.0f) total_u = 1000.0f;
+    if (total_u &lt; -1000.0f) total_u = -1000.0f;
+    motor_smc.output_pwm = total_u;
+    
+    // 5. 驅動硬體輸出 (正反轉方向與 PWM 暫存器寫入)
+    if (motor_smc.output_pwm &gt;= 0) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COMPARE(&amp;htim1, TIM_CHANNEL_1, (uint32_t)motor_smc.output_pwm);
+    } else {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+        __HAL_TIM_SET_COMPARE(&amp;htim1, TIM_CHANNEL_1, (uint32_t)(-motor_smc.output_pwm));
+    }
+}
+</code></pre>
+      </div>
+
+      <!-- 手帳風小提醒便籤 -->
+      <div class="note-dash mt-6 flex items-start gap-3">
+        <span class="text-2xl">📐</span>
+        <div class="text-sm text-[#1E293B]">
+          <strong class="text-[#1F7A76] font-bold block mb-1" style="font-family:var(--round)">控制手帳小叮嚀：</strong>
+          <p>1. <strong>邊界層厚度 $\Phi$ (phi)</strong>：若設得過小，系統會接近理想符號函數 $sgn(s)$ 產生高頻抖振（馬達發出尖銳蜂鳴聲）；若設得過大，穩態靜態誤差會增加。實務上建議從 $1.0 \sim 2.0$ 開始微調。</p>
+          <p>2. <strong>編碼器微分雜訊</strong>：在計算 $de/dt$ 時，低速下可能因離散量化產生脈衝雜訊，可在輸入前加上一階低通濾波器（一階慣性環節），使滑模面計算更平穩。</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 置底宣告 (Footer) -->
+  <footer class="mt-20 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-sm text-[#7A8E9B]">
+    <div class="max-w-4xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-black text-[#1E293B]" style="font-family:var(--round)">IoT &amp; Embedded Wiki</span>
+        <span>・ 電路實驗手帳</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="font-bold text-[#1F7A76] hover:text-[#1E293B] flex items-center gap-1.5 transition-colors">
+          <span>GitHub Repository</span>
+          <span>↗</span>
+        </a>
+        <span>Hardware Lab Techo ⎍</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

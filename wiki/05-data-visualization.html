@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>05. 資料視覺化與儀表板實作 - IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="MQTT over WebSockets、JSON 解析、FIFO 佇列與 Chart.js 動態折線圖實作。">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --paper-bg: #F8F5EE;
+      --card-bg: #FFFDF8;
+      --ink: #1E293B;
+      --ink-muted: #5F6D76;
+      --pcb-teal: #1F7A76;
+      --pcb-teal-soft: #D9ECE9;
+      --kapton-amber: #EAA053;
+      --ribbon-blue: #457B9D;
+      --highlighter: #FBE083;
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] px-4 sm:px-8 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-[#1E293B] text-white flex items-center justify-center font-black text-sm border-2 border-[#1E293B]">
+            W5
+          </span>
+          <span class="font-black text-[#1E293B] text-base" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+        </a>
+      </div>
+      <div class="flex items-center gap-3 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="index.html" class="px-2.5 py-1 text-[#5F6D76] hover:text-[#1E293B]">
+          ⬅ 返回目錄
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+          <span>🎯</span>
+          <span>播放簡報</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <article class="lab-card p-6 sm:p-10 mb-8">
+      <span class="tape-kapton"></span>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#FBE083] text-[#1E293B] border-2 border-[#1E293B]">
+          WIKI-05
+        </span>
+        <span class="text-xs text-[#5F6D76]">前端視覺化與人機介面</span>
+        <span class="text-xs text-[#5F6D76]">・ 更新日期：2026-11-19</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+        05. 資料視覺化與儀表板實作 <span class="u">(Data Visualization)</span>
+      </h1>
+      <div class="ruler-divider"></div>
+
+      <div class="bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4 mb-8 text-sm">
+        <strong>Overview 簡介：</strong>
+        資料視覺化是物聯網的「最後一哩路」，將時序數值矩陣透過圖形化介面轉化為直觀視覺資訊，使人機協同與即時決策更敏捷。
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">1. 數據到畫面的三大轉換步驟</h2>
+      
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-6 leading-relaxed"><code>+-------------------------------------------------------------------------------+
+|                       前端即時視覺化處理流程管道                              |
+|                                                                               |
+|  [步驟 1: 傳輸與接收]       [步驟 2: 資料解析與過濾]        [步驟 3: 動態渲染圖表]    |
+|   MQTT over WebSockets ──▶  JSON.parse(message)   ──▶ Chart.js Canvas Update  |
+|   (持續監聽 Topic 訊息)       (提取數值、時間戳與狀態)      (折線推移、顏色警戒更新)  |
++-------------------------------------------------------------------------------+</code></pre>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#1F7A76] mb-1">Step 1. 長連線接收</h4>
+          <p class="text-[11px] text-[#5F6D76]">MQTT over WebSockets 保持單一雙向通道，避免重複建立連線。</p>
+        </div>
+        <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#1E293B] mb-1">Step 2. 解析與清洗</h4>
+          <p class="text-[11px] text-[#5F6D76]">JSON.parse() 還原物件，並驗證 PM2.5 數值是否在合理物理區間。</p>
+        </div>
+        <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#457B9D] mb-1">Step 3. FIFO 佇列渲染</h4>
+          <p class="text-[11px] text-[#5F6D76]">Chart.js 畫布保留最新 20 筆紀錄，先進先出推移更新平滑折線。</p>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">2. 前端實作範例 (HTML5 Canvas + Chart.js)</h2>
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-8 leading-relaxed"><code>// 當 MQTT 收到新封包時更新圖表
+function onSensorMessage(newPm25, timeString) {
+  if (pm25Chart.data.labels.length >= 20) {
+    pm25Chart.data.labels.shift();
+    pm25Chart.data.datasets[0].data.shift();
+  }
+  pm25Chart.data.labels.push(timeString);
+  pm25Chart.data.datasets[0].data.push(newPm25);
+  pm25Chart.update();
+}</code></pre>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">3. 新手生活化比喻 (Novice Analogy)</h2>
+      <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-xs sm:text-sm leading-relaxed text-[#1E293B]">
+        <strong class="text-[#EAA053] text-base block mb-1">💡 就像超跑的「全數位多功能儀表板」：</strong>
+        當你開車在高速公路上奔馳時，引擎每秒燃燒多少滴汽油、渦輪增壓閥的電壓是幾毫伏特，這些複雜的內部電子訊號都不需要你分心理解。儀表板把底層錯綜複雜的訊號，直接化為「時速表上的數字」以及「胎壓異常時亮起的紅色警示燈」。你只要輕瞄一眼，立刻知道目前的車況安不安全！
+      </div>
+
+    </article>
+
+    <div class="flex justify-between items-center text-xs sm:text-sm font-bold">
+      <a href="04-json-format.html" class="btn-techo px-4 py-2 bg-[#FFFDF8] rounded-xl text-[#1E293B]">
+        ⬅ 上一篇：04. JSON 格式
+      </a>
+      <a href="index.html" class="btn-techo px-4 py-2 bg-[#1F7A76] text-white rounded-xl">
+        回到 Wiki 總目錄 ➔
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-center text-xs text-[#7A8E9B]">
+    IoT &amp; Embedded Wiki ・ 國立臺中科技大學 資工四A 王庭翊
+  </footer>
+
+</body>
+</html>
+

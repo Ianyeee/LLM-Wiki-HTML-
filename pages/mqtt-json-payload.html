@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>使用 MQTT.js 傳送 JSON 格式感測器數據 - IoT &amp; Embedded Wiki</title>
+  
+  <!-- Google Fonts: 導入日系圓體、思源黑體與 JetBrains Mono 等寬代碼字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      /* 基底紙本色系 (Engineering Paper) */
+      --paper-bg: #F8F5EE;          /* 燕麥工程圖紙底色 */
+      --card-bg: #FFFDF8;           /* 手帳紙白卡片 */
+      --ink: #1E293B;               /* 石墨深藍黑 (主線條、標題與文字) */
+      --ink-muted: #5F6D76;         /* 說明副文字灰 */
+
+      /* 專屬硬體標籤與膠帶色彩 */
+      --pcb-teal: #1F7A76;          /* PCB 電路板松石綠 (主題品牌色) */
+      --pcb-teal-soft: #D9ECE9;     /* 淺松綠標籤底色 */
+      --kapton-amber: #EAA053;      /* 金手指耐熱膠帶琥珀金 */
+      --ribbon-blue: #457B9D;       /* 杜邦排線藍 */
+      --highlighter: #FBE083;       /* 工程螢光筆劃線黃 */
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    /* 24px 精密工程方格底紙 */
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    /* 螢光筆劃記標記效果 */
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 6px;
+      border-radius: 2px;
+    }
+
+    /* 工程刻度分隔線 */
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    /* 專屬金手指耐熱膠帶效果 */
+    .tape-kapton {
+      position: absolute;
+      top: -14px;
+      left: 28px;
+      width: 110px;
+      height: 28px;
+      background: var(--kapton-amber);
+      opacity: 0.8;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+    .tape-blue {
+      background: var(--ribbon-blue);
+      opacity: 0.75;
+      transform: rotate(2.5deg);
+    }
+
+    /* 手帳風粗框與硬陰影面版 */
+    .lab-panel {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 20px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.14);
+    }
+
+    /* 便籤提示小卡 */
+    .note-dash {
+      background: #FFFDF8;
+      border: 2px dashed #1F7A76;
+      border-radius: 16px;
+      padding: 16px 20px;
+    }
+
+    /* 腳位表格樣式 */
+    .lab-table th {
+      background: var(--pcb-teal-soft);
+      color: var(--ink);
+      font-family: var(--round);
+      font-weight: 800;
+      border-bottom: 2px solid var(--ink);
+      padding: 12px 16px;
+    }
+    .lab-table td {
+      padding: 12px 16px;
+      border-bottom: 1px dashed #D8D2C4;
+    }
+    .lab-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    code, pre {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+  <!-- 頂部導覽列 (Navbar，路徑相對性為 ../index.html) -->
+  <nav class="bg-[#FFFDF8]/90 border-b-[2.5px] border-[#1E293B] sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-5xl mx-auto px-5 sm:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Brand Logo & Name -->
+      <a href="../index.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-[#1F7A76] border-2 border-[#1E293B] flex items-center justify-center text-white text-lg shadow-[2px_2px_0_#1E293B] group-hover:rotate-6 transition-transform">
+          ⚡
+        </div>
+        <div>
+          <span class="block font-black text-[#1E293B] text-lg sm:text-xl tracking-tight" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+          <span class="block font-bold text-[#1F7A76] text-xs tracking-wider" style="font-family:var(--round)">
+            電路實驗手帳・工程知識庫
+          </span>
+        </div>
+      </a>
+
+      <!-- 導覽連結 -->
+      <div class="flex items-center space-x-2 sm:space-x-5 text-sm sm:text-base font-extrabold" style="font-family:var(--round)">
+        <a href="../index.html" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          Home
+        </a>
+        <a href="../index.html#mcu" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          MCU
+        </a>
+        <a href="../index.html#protocols" class="text-[#1E293B] bg-[#FBE083] border-2 border-[#1E293B] px-3 py-1 rounded-lg shadow-[2px_2px_0_rgba(30,41,59,0.15)] transition-all">
+          Protocols
+        </a>
+        <a href="../index.html#algorithms" class="text-[#5F6D76] hover:text-[#1E293B] px-2 py-1 hover:underline decoration-2 underline-offset-4 transition-colors">
+          Algorithms
+        </a>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- 內容主體 (符合 AGENTS.md 限制最大寬度 max-w-4xl mx-auto) -->
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <!-- 麵包屑導覽 (Breadcrumbs) -->
+    <nav class="text-xs font-bold text-[#7A8E9B] mb-6 flex items-center space-x-2" style="font-family:var(--round)">
+      <a href="../index.html" class="hover:text-[#1E293B] transition-colors">首頁</a>
+      <span>/</span>
+      <a href="../index.html#protocols" class="hover:text-[#1E293B] transition-colors">Protocols</a>
+      <span>/</span>
+      <span class="text-[#1E293B]">MQTT.js JSON Payload</span>
+    </nav>
+
+    <!-- 1. 主標題 (<h1> - 嚴格遵守規範順序) -->
+    <header class="mb-8">
+      <div class="inline-flex items-center gap-2 bg-[#D8EBF5] border-2 border-[#1E293B] px-3.5 py-1 rounded-full text-xs font-black text-[#457B9D] mb-3 shadow-[2px_2px_0_rgba(30,41,59,0.1)]" style="font-family:var(--round)">
+        <span>📡</span> 物聯網協定實作手冊
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-[#1E293B] leading-[1.3] tracking-tight" style="font-family:var(--round)">
+        使用 <span class="u">MQTT.js</span> 傳送 JSON 格式感測器數據
+      </h1>
+    </header>
+
+    <!-- 2. Overview (簡介 - 嚴格遵守規範順序，一句話實作目標) -->
+    <section class="mb-12">
+      <div class="lab-panel p-6 sm:p-7">
+        <span class="tape-kapton tape-blue"></span>
+        <h2 class="text-xs font-black uppercase tracking-wider text-[#1F7A76] mb-2" style="font-family:var(--round)">
+          ✦ Overview
+        </h2>
+        <p class="text-base sm:text-lg text-[#1E293B] font-bold leading-relaxed" style="font-family:var(--round)">
+          本頁面說明如何在邊緣端運算節點（如 Raspberry Pi 5）上使用 MQTT.js 客戶端套件，將 SHT20 感測器採集的溫濕度數據封裝成標準 JSON 格式發布至 MQTT Broker。
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. Hardware / Software Requirements (軟硬體需求 - 嚴格遵守規範順序，無序清單 <ul>) -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Hardware / Software Requirements
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+
+      <div class="lab-panel p-6">
+        <span class="tape-kapton"></span>
+        <ul class="space-y-3 text-sm sm:text-base text-[#1E293B]">
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>邊緣硬體節點</strong>：Raspberry Pi 5 (或任一安裝 Node.js 之 Linux / macOS / Windows 邊緣裝置)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>感測器模組</strong>：Sensirion SHT20 數位溫濕度感測器 (I2C 介面)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>線材</strong>：4 條母對母杜邦線 (VCC, GND, SDA, SCL)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>執行環境</strong>：Node.js (建議版本 v18.0.0 LTS 以上)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>核心相依套件</strong>：MQTT.js (<code class="bg-[#FBE083] text-[#1E293B] px-2 py-0.5 rounded font-bold border border-[#1E293B] text-xs">npm install mqtt</code>)</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="inline-block mt-1 text-[#1F7A76] font-bold">✔</span>
+            <span><strong>MQTT 訊息代理站 (Broker)</strong>：本機 Mosquitto 或公開測試伺服器 (<code class="bg-[#D9ECE9] text-[#1F7A76] px-2 py-0.5 rounded font-bold border border-[#1E293B] text-xs">mqtt://broker.emqx.io:1883</code>)</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4. Wiring Diagram (接線對應 - 嚴格遵守規範順序，HTML <table>) -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Wiring Diagram (接線對應)
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+      
+      <p class="text-sm text-[#5F6D76] mb-4">
+        Raspberry Pi 5 40-Pin 擴充排針與 SHT20 I2C 溫濕度感測器的硬體實體接線對應：
+      </p>
+
+      <div class="lab-panel overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm lab-table">
+            <thead>
+              <tr>
+                <th scope="col">MCU Pin (Raspberry Pi 5)</th>
+                <th scope="col">Sensor Pin (SHT20)</th>
+                <th scope="col">訊號類型</th>
+                <th scope="col">功能說明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">Pin 1 (3.3V Power)</td>
+                <td class="font-mono font-black text-[#1E293B]">VCC</td>
+                <td><span class="inline-block bg-[#FDE2E4] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Power</span></td>
+                <td class="text-[#5F6D76]">提供 3.3V 電源正極供電</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">Pin 6 (Ground)</td>
+                <td class="font-mono font-black text-[#1E293B]">GND</td>
+                <td><span class="inline-block bg-[#E8E2D5] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Ground</span></td>
+                <td class="text-[#5F6D76]">模組接地迴路 (GND)</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">Pin 3 (GPIO 2 / I2C1_SDA)</td>
+                <td class="font-mono font-black text-[#1E293B]">SDA</td>
+                <td><span class="inline-block bg-[#D9ECE9] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Data</span></td>
+                <td class="text-[#5F6D76]">I2C 串列資料雙向傳輸線</td>
+              </tr>
+              <tr>
+                <td class="font-mono font-bold text-[#1E293B]">Pin 5 (GPIO 3 / I2C1_SCL)</td>
+                <td class="font-mono font-black text-[#1E293B]">SCL</td>
+                <td><span class="inline-block bg-[#D9ECE9] text-[#1E293B] px-2 py-0.5 rounded-full text-xs font-bold border border-[#1E293B]">Clock</span></td>
+                <td class="text-[#5F6D76]">I2C 串列時脈同步線</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Code Implementation (程式碼實作 - 嚴格遵守規範順序) -->
+    <section class="mb-14">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">
+          Code Implementation
+        </h2>
+      </div>
+      <div class="ruler-divider"></div>
+      
+      <p class="text-sm text-[#5F6D76] mb-4">
+        以下程式碼展示如何使用 MQTT.js 建立長連線，採集 SHT20 數值並以 <code class="font-bold text-[#1E293B]">JSON.stringify()</code> 序列化後發送至 Broker：
+      </p>
+
+      <!-- 序列埠除錯窗質感代碼卡片，兼顧 AGENTS.md 的 bg-gray-800 和 rounded-lg 要求 -->
+      <div class="lab-panel overflow-hidden border-[2.5px] border-[#1E293B]">
+        <div class="bg-[#1E293B] px-5 py-2.5 flex justify-between items-center text-xs text-[#FFFDF8] font-bold" style="font-family:var(--round)">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-[#EAA053] inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-[#FBE083] inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-[#1F7A76] inline-block"></span>
+            <span class="ml-2 font-mono">publisher.js</span>
+          </div>
+          <span class="bg-[#FFFDF8]/15 px-2 py-0.5 rounded text-[#D9ECE9]">Serial Node.js</span>
+        </div>
+        
+        <pre class="bg-gray-800 p-6 overflow-x-auto text-sm font-mono leading-relaxed text-gray-100 rounded-b-lg"><code class="language-javascript">const mqtt = require('mqtt');
+
+// 1. MQTT Broker 連線配置
+const BROKER_URL = 'mqtt://broker.emqx.io:1883';
+const TOPIC_TELEMETRY = 'sensors/rpi5-node-01/telemetry';
+
+const clientOptions = {
+  clientId: `mqttjs_publisher_${Math.random().toString(16).substring(2, 8)}`,
+  clean: true,
+  connectTimeout: 4000,
+  reconnectPeriod: 2000
+};
+
+// 2. 建立客戶端連線
+const client = mqtt.connect(BROKER_URL, clientOptions);
+
+client.on('connect', () => {
+  console.log(`[MQTT] 成功連線至 Broker: ${BROKER_URL}`);
+  console.log(`[MQTT] 目標發布主題 (Topic): ${TOPIC_TELEMETRY}`);
+
+  // 連線成功後，啟動定時發布任務 (每 5 秒傳送一次)
+  setInterval(() => {
+    publishSensorData();
+  }, 5000);
+});
+
+client.on('error', (err) => {
+  console.error('[MQTT] 連線異常:', err.message);
+});
+
+client.on('offline', () => {
+  console.warn('[MQTT] 客戶端離線，等待自動重新連線...');
+});
+
+// 3. 採集與格式化感測器數據 (封裝為 JSON 物件)
+function readSensorPayload() {
+  // [請在此處補上硬體感測器讀取邏輯或 I2C Driver]
+  // 此處使用模擬讀值作為展示範例
+  const temperature = parseFloat((24.0 + Math.random() * 3.0).toFixed(2));
+  const humidity = parseFloat((55.0 + Math.random() * 8.0).toFixed(2));
+
+  return {
+    deviceId: 'rpi5-node-01',
+    sensorType: 'SHT20',
+    timestamp: new Date().toISOString(),
+    metrics: {
+      temperature: temperature,
+      temperatureUnit: 'Celsius',
+      humidity: humidity,
+      humidityUnit: 'Percent'
+    },
+    status: 'HEALTHY'
+  };
+}
+
+// 4. 發布 JSON Payload 至 MQTT Broker
+function publishSensorData() {
+  const payloadObject = readSensorPayload();
+  const payloadString = JSON.stringify(payloadObject);
+
+  const publishOptions = {
+    qos: 1,       // 至少送達一次 (At least once)
+    retain: false // 不保留最後一筆訊息於 Broker
+  };
+
+  client.publish(TOPIC_TELEMETRY, payloadString, publishOptions, (error) => {
+    if (error) {
+      console.error('[MQTT] 訊息發布失敗:', error);
+    } else {
+      console.log(`[MQTT] 數據發布成功 (QoS 1) -> ${payloadString}`);
+    }
+  });
+}
+
+// 5. 處理優雅關閉 (Graceful Shutdown)
+process.on('SIGINT', () => {
+  console.log('\n[MQTT] 收到中斷信號，正在中斷連線...');
+  client.end(false, () => {
+    console.log('[MQTT] 連線已安全關閉。');
+    process.exit(0);
+  });
+});
+</code></pre>
+      </div>
+
+      <!-- 手帳風小提醒便籤 -->
+      <div class="note-dash mt-6 flex items-start gap-3">
+        <span class="text-2xl">💡</span>
+        <div class="text-sm text-[#1E293B]">
+          <strong class="text-[#1F7A76] font-bold block mb-1" style="font-family:var(--round)">工程手帳筆記：</strong>
+          <p>1. 發布前請務必使用 <code class="font-bold text-[#1F7A76]">JSON.stringify()</code> 序列化，MQTT 傳輸本質為二進位 Payload 或字串。</p>
+          <p>2. 正式環境中請將 Broker 金鑰與憑證放入 <code class="font-bold text-[#1F7A76]">.env</code> 環境變數，勿直接寫死在程式碼中。</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 置底宣告 (Footer) -->
+  <footer class="mt-20 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-sm text-[#7A8E9B]">
+    <div class="max-w-4xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-black text-[#1E293B]" style="font-family:var(--round)">IoT &amp; Embedded Wiki</span>
+        <span>・ 電路實驗手帳</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="font-bold text-[#1F7A76] hover:text-[#1E293B] flex items-center gap-1.5 transition-colors">
+          <span>GitHub Repository</span>
+          <span>↗</span>
+        </a>
+        <span>Hardware Lab Techo ⎍</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

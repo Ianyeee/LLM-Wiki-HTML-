@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>04. 物聯網資料格式 JSON - IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="為什麼物聯網首選 JSON？輕量化傳輸、跨 C/Python/JS 原生相容與真實 Payload 範例。">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --paper-bg: #F8F5EE;
+      --card-bg: #FFFDF8;
+      --ink: #1E293B;
+      --ink-muted: #5F6D76;
+      --pcb-teal: #1F7A76;
+      --pcb-teal-soft: #D9ECE9;
+      --kapton-amber: #EAA053;
+      --ribbon-blue: #457B9D;
+      --highlighter: #FBE083;
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] px-4 sm:px-8 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-[#EAA053] text-[#1E293B] flex items-center justify-center font-black text-sm border-2 border-[#1E293B]">
+            W4
+          </span>
+          <span class="font-black text-[#1E293B] text-base" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+        </a>
+      </div>
+      <div class="flex items-center gap-3 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="index.html" class="px-2.5 py-1 text-[#5F6D76] hover:text-[#1E293B]">
+          ⬅ 返回目錄
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+          <span>🎯</span>
+          <span>播放簡報</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <article class="lab-card p-6 sm:p-10 mb-8">
+      <span class="tape-kapton"></span>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#EAA053] text-[#1E293B] border-2 border-[#1E293B]">
+          WIKI-04
+        </span>
+        <span class="text-xs text-[#5F6D76]">資料序列化與封包格式</span>
+        <span class="text-xs text-[#5F6D76]">・ 更新日期：2026-11-19</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+        04. 物聯網資料格式 JSON <span class="u">(JSON Payload)</span>
+      </h1>
+      <div class="ruler-divider"></div>
+
+      <div class="bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4 mb-8 text-sm">
+        <strong>Overview 簡介：</strong>
+        JSON 以 Key-Value 結構為基礎，在「輕量傳輸效率」、「跨平台跨語言相容性」與「開發除錯便利性」三大維度之間取得了公認的最佳甜蜜點。
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">1. 為什麼物聯網系統首選 JSON？</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#1F7A76] mb-1">跨語言原生相容</h4>
+          <p class="text-[11px] text-[#5F6D76]">ESP32 的 C++、後端的 Python、前端的 JS 全都內建支援，免去編譯轉譯成本。</p>
+        </div>
+        <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#1E293B] mb-1">肉眼除錯極佳</h4>
+          <p class="text-[11px] text-[#5F6D76]">純文字自我描述，工程師在 Serial Monitor 或網路 Log 一眼看懂數值含義。</p>
+        </div>
+        <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-xs text-[#457B9D] mb-1">向下相容性高</h4>
+          <p class="text-[11px] text-[#5F6D76]">新增 CO2 或 VOC 欄位時，舊版接收程式碼只需忽略未知 Key，系統永不崩潰。</p>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">2. 真實感測器 Payload 封包結構</h2>
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-8 leading-relaxed"><code>{
+  "device_id": "ESP32_LAB_01",
+  "timestamp": 1732018800,
+  "data": {
+    "pm25": 24.5,
+    "pm10": 38.2,
+    "temperature": 26.8,
+    "humidity": 58.2
+  },
+  "status": {
+    "wifi_rssi": -62,
+    "fan_duty": 45,
+    "alert_level": "NORMAL"
+  }
+}</code></pre>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">3. 新手生活化比喻 (Novice Analogy)</h2>
+      <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-xs sm:text-sm leading-relaxed text-[#1E293B]">
+        <strong class="text-[#EAA053] text-base block mb-1">💡 國際標準化的「宅配包裹托運單」：</strong>
+        <p class="mb-2"><strong>Raw Data（一串雜亂的二進位位元組）</strong>：就像寄件人把一堆零件胡亂塞在箱子裡，上面什麼都沒寫，收件人打開來根本不知道哪個螺絲是配哪個螺栓。</p>
+        <p><strong>JSON 格式</strong>：就像在包裹外面貼上一張格式規範統一的「黑貓 / 順豐托運單」。上面清楚印著【寄件人（Key）：ESP32】、【物品名稱（Key）：PM2.5】、【測量數值（Value）：24.5】。不管快遞員講中文、日文還是英文，一眼看過托運單就知道包裹裝什麼、該怎麼配送！</p>
+      </div>
+
+    </article>
+
+    <div class="flex justify-between items-center text-xs sm:text-sm font-bold">
+      <a href="03-mqtt-protocol.html" class="btn-techo px-4 py-2 bg-[#FFFDF8] rounded-xl text-[#1E293B]">
+        ⬅ 上一篇：03. MQTT 協定
+      </a>
+      <a href="05-data-visualization.html" class="btn-techo px-4 py-2 bg-[#1F7A76] text-white rounded-xl">
+        下一篇：05. 資料視覺化 ➔
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-center text-xs text-[#7A8E9B]">
+    IoT &amp; Embedded Wiki ・ 國立臺中科技大學 資工四A 王庭翊
+  </footer>
+
+</body>
+</html>
+

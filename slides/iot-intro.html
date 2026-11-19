@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>物聯網入門：感測器數據如何從單晶片傳到網頁？ ・ 教學型互動 HTML 簡報</title>
+  <meta name="description" content="由 LLM Wiki 知識庫所提煉製作的物聯網與微控制器教學型互動簡報。">
+
+  <!-- Google Fonts: 日系手帳圓體、思源黑體與 JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      /* 基底工程紙本色系 */
+      --paper-bg: #F8F5EE;          /* 燕麥工程圖紙底色 */
+      --card-bg: #FFFDF8;           /* 手帳紙白卡片 */
+      --ink: #1E293B;               /* 石墨深藍黑 */
+      --ink-muted: #5F6D76;         /* 說明副文字墨水灰 */
+
+      /* 專屬硬體標籤與膠帶色彩 */
+      --pcb-teal: #1F7A76;          /* PCB 電路板松石綠 (主題品牌色) */
+      --pcb-teal-soft: #D9ECE9;     /* 淺松綠標籤底色 */
+      --kapton-amber: #EAA053;      /* 金手指耐熱膠帶琥珀金 */
+      --ribbon-blue: #457B9D;       /* 杜邦排線藍 */
+      --ribbon-blue-soft: #D8EBF5;  /* 淺排線藍底色 */
+      --copper-blush: #ECA1A6;      /* 銅箔粉紅 */
+      --highlighter: #FBE083;       /* 工程螢光筆劃線黃 */
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* 螢光筆劃記效果 */
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+    .u-teal {
+      background: linear-gradient(transparent 58%, var(--pcb-teal-soft) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    /* 金手指耐熱膠帶 */
+    .tape-kapton {
+      position: absolute;
+      top: -14px;
+      left: 36px;
+      width: 110px;
+      height: 28px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-2.5deg);
+      box-shadow: 0 2px 5px rgba(30, 41, 59, 0.15);
+      z-index: 20;
+    }
+    .tape-blue {
+      position: absolute;
+      top: -14px;
+      right: 36px;
+      width: 95px;
+      height: 28px;
+      background: var(--ribbon-blue);
+      opacity: 0.78;
+      border-radius: 3px;
+      transform: rotate(2.5deg);
+      box-shadow: 0 2px 5px rgba(30, 41, 59, 0.15);
+      z-index: 20;
+    }
+
+    /* Neo-brutalism 石墨手帳外框與實心陰影 */
+    .techo-card {
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      box-shadow: 6px 6px 0 rgba(30, 41, 59, 0.15);
+      border-radius: 12px;
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover:not(:disabled) {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+    .btn-techo:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+    .btn-techo:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* 頂部進度條 */
+    #top-progress-bar {
+      height: 6px;
+      background: linear-gradient(90deg, var(--pcb-teal), var(--kapton-amber));
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* 投影片切換動畫容器 */
+    .slide-page {
+      display: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .slide-page.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 等寬代碼區塊 */
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen select-none">
+
+  <!-- 頂部即時進度條 -->
+  <div class="fixed top-0 left-0 w-full z-50 bg-[#E2E8F0]">
+    <div id="top-progress-bar" style="width: 11.11%;"></div>
+  </div>
+
+  <!-- 頂部控制與導航列 (Navigation Header) -->
+  <header class="w-full bg-[#FFFDF8] border-b-2 border-[#1E293B] px-4 md:px-8 py-3 flex items-center justify-between shadow-sm sticky top-0 z-40">
+    <div class="flex items-center gap-3">
+      <a href="../index.html" class="btn-techo bg-[#F8F5EE] text-[#1E293B] px-3.5 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5" title="回到專案首頁">
+        <span>⬅</span>
+        <span class="hidden sm:inline">返回 Wiki 首頁</span>
+      </a>
+      <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-[#D9ECE9] text-[#1F7A76] border border-[#1F7A76]">
+        LLM Wiki 提煉簡報
+      </span>
+    </div>
+
+    <!-- 標題提示 -->
+    <div class="text-center hidden lg:block">
+      <h1 class="text-base font-extrabold text-[#1E293B] tracking-wide">
+        物聯網入門：感測器數據如何從單晶片傳到網頁？
+      </h1>
+      <p class="text-xs text-[#5F6D76]">第十週作業專案 ・ 國立臺中科技大學 資工四A 王庭翊</p>
+    </div>
+
+    <!-- 簡報切換按鈕區 -->
+    <div class="flex items-center gap-2">
+      <button id="btn-prev" onclick="prevSlide()" class="btn-techo bg-[#FFFDF8] hover:bg-[#F8F5EE] text-[#1E293B] px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1" disabled>
+        <span>◀</span>
+        <span class="hidden sm:inline">上一頁</span>
+      </button>
+      <div id="slide-indicator" class="text-xs md:text-sm font-black px-3 py-1 bg-[#D8EBF5] text-[#457B9D] border border-[#457B9D] rounded-lg">
+        1 / 9
+      </div>
+      <button id="btn-next" onclick="nextSlide()" class="btn-techo bg-[#1F7A76] hover:bg-[#165a57] text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1">
+        <span class="hidden sm:inline">下一頁</span>
+        <span>▶</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 簡報主舞台 (Main Stage) -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 flex flex-col justify-center">
+
+    <!-- 投影片外層手帳卡片 -->
+    <div class="techo-card relative p-6 md:p-10 min-h-[580px] flex flex-col justify-between">
+      
+      <!-- 卡片裝飾紙膠帶 -->
+      <div class="tape-kapton"></div>
+      <div class="tape-blue"></div>
+
+      <!-- ==================== SLIDE 1: 封面頁 ==================== -->
+      <section class="slide-page active" data-source="wiki/index.md" data-source-title="知識庫總目錄與系統資料流">
+        <div class="pt-6 pb-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#FBE083] text-[#1E293B] border-2 border-[#1E293B] rounded-full text-xs font-black shadow-sm mb-4">
+            <span>📚</span>
+            <span>HARDWARE LAB TECHO ・ INTERACTIVE DECK</span>
+          </div>
+          <h2 class="text-3xl md:text-5xl font-black text-[#1E293B] leading-tight mb-4">
+            物聯網入門：<br>
+            <span class="u">感測器數據</span>如何從單晶片傳到網頁？
+          </h2>
+          <p class="text-lg md:text-xl text-[#5F6D76] font-medium mb-8">
+            從一粒微小的空氣懸浮粒子，到瀏覽器上的平滑動態圖表 ―― 揭密現代物聯網系統的 5 大關鍵技術節點。
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl shadow-sm">
+              <div class="text-2xl mb-1">🔍</div>
+              <h4 class="font-bold text-[#1E293B] text-base mb-1">基於真實 LLM Wiki</h4>
+              <p class="text-xs text-[#5F6D76]">內容完全萃取自 5 篇結構化硬體技術知識庫，落實知識溯源。</p>
+            </div>
+            <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl shadow-sm">
+              <div class="text-2xl mb-1">💡</div>
+              <h4 class="font-bold text-[#1F7A76] text-base mb-1">通俗生活化比喻</h4>
+              <p class="text-xs text-[#5F6D76]">用指揮官、偵察兵、物流托運單與 YouTube 頻道輕鬆理解底層原理。</p>
+            </div>
+            <div class="p-4 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl shadow-sm">
+              <div class="text-2xl mb-1">⚡</div>
+              <h4 class="font-bold text-[#457B9D] text-base mb-1">雙晶片協同實作</h4>
+              <p class="text-xs text-[#5F6D76]">解讀 STM32 決策大腦與 ESP32 通訊前哨的工業級架構分工。</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-[#5F6D76] pt-4 border-t border-[#1E293B]/20">
+            <div>
+              <strong>製作者：</strong>國立臺中科技大學 資訊工程系四A 王庭翊 (1311432014)
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>鍵盤左右鍵 / 點擊下方導航切換投影片</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 2: 全局架構導覽 ==================== -->
+      <section class="slide-page" data-source="wiki/index.md" data-source-title="知識庫總目錄與關聯地圖">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Overview ・ 全景架構</span>
+            <span class="text-xs bg-[#D9ECE9] text-[#1F7A76] px-2.5 py-0.5 rounded-full font-bold">5 大關鍵站點</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            一粒空氣懸浮微粒的<span class="u">奇幻數位旅程</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-6">
+            物理世界與數位瀏覽器之間的橋樑，由以下五個站點緊密串聯而成：
+          </p>
+
+          <!-- 視覺化數據流卡片 (Flexbox Pipeline) -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
+            <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-lg text-center relative">
+              <div class="w-8 h-8 rounded-full bg-[#EAA053] text-white font-bold flex items-center justify-center mx-auto mb-1 text-sm shadow">1</div>
+              <h4 class="font-bold text-xs text-[#1E293B]">環境感測</h4>
+              <p class="text-[11px] text-[#5F6D76] mt-1">SPS30 / SHT20<br>物理轉電氣訊號</p>
+            </div>
+            <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-lg text-center relative">
+              <div class="w-8 h-8 rounded-full bg-[#1F7A76] text-white font-bold flex items-center justify-center mx-auto mb-1 text-sm shadow">2</div>
+              <h4 class="font-bold text-xs text-[#1F7A76]">雙 MCU 協同</h4>
+              <p class="text-[11px] text-[#5F6D76] mt-1">ESP32 採樣<br>STM32 決策大腦</p>
+            </div>
+            <div class="p-3 bg-[#FFFDF8] border-2 border-[#1E293B] rounded-lg text-center relative">
+              <div class="w-8 h-8 rounded-full bg-[#EAA053] text-white font-bold flex items-center justify-center mx-auto mb-1 text-sm shadow">3</div>
+              <h4 class="font-bold text-xs text-[#EAA053]">JSON 格式</h4>
+              <p class="text-[11px] text-[#5F6D76] mt-1">Key-Value<br>標準化物流托運單</p>
+            </div>
+            <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-lg text-center relative">
+              <div class="w-8 h-8 rounded-full bg-[#457B9D] text-white font-bold flex items-center justify-center mx-auto mb-1 text-sm shadow">4</div>
+              <h4 class="font-bold text-xs text-[#457B9D]">MQTT 協定</h4>
+              <p class="text-[11px] text-[#5F6D76] mt-1">Pub / Sub<br>Broker 訊息中轉站</p>
+            </div>
+            <div class="p-3 bg-[#FBE083] border-2 border-[#1E293B] rounded-lg text-center relative">
+              <div class="w-8 h-8 rounded-full bg-[#1E293B] text-white font-bold flex items-center justify-center mx-auto mb-1 text-sm shadow">5</div>
+              <h4 class="font-bold text-xs text-[#1E293B]">動態儀表板</h4>
+              <p class="text-[11px] text-[#5F6D76] mt-1">WebSocket<br>Chart.js 即時曲線</p>
+            </div>
+          </div>
+
+          <!-- 3 大核心重點 (嚴格落實 AGENTS.md 不超過 3 點規範) -->
+          <div class="bg-[#FFFDF8] border-2 border-[#1E293B] rounded-xl p-4 space-y-2.5">
+            <div class="flex items-start gap-3">
+              <span class="text-base text-[#1F7A76] font-black">01</span>
+              <div>
+                <strong class="text-sm text-[#1E293B]">端到端全鏈路打通：</strong>
+                <span class="text-xs text-[#5F6D76]">不論底層硬體是感測器、單晶片或是高階網頁，資訊皆依標準格式有序傳遞。</span>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-base text-[#EAA053] font-black">02</span>
+              <div>
+                <strong class="text-sm text-[#1E293B]">模組化與低耦合設計：</strong>
+                <span class="text-xs text-[#5F6D76]">每個站點各司其職，更換感測器或調整網頁版面，皆不會癱瘓其他模組。</span>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-base text-[#457B9D] font-black">03</span>
+              <div>
+                <strong class="text-sm text-[#1E293B]">生活化比喻：</strong>
+                <span class="text-xs text-[#5F6D76]">就像一條精密分工的「跨國高鐵生鮮物流鏈」，從產地採集到客戶桌上一氣呵成。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 3: 環境感測與 ADC ==================== -->
+      <section class="slide-page" data-source="wiki/02-env-sensors.md" data-source-title="環境感測器與訊號轉換">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 1 ・ 訊號擷取</span>
+            <span class="text-xs bg-[#F8F5EE] border border-[#1E293B] text-[#1E293B] px-2.5 py-0.5 rounded-full font-bold">SPS30 & SHT20</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            系統的靈敏五官：<span class="u">把空氣微粒翻譯成數位數字</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-6">
+            微控制器只懂得 0 與 1，必須依賴感測器的五步訊號轉換管道：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <!-- 訊號管道五部曲手帳盒 -->
+            <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+              <h4 class="font-black text-sm text-[#1E293B] mb-3 flex items-center gap-1.5">
+                <span class="text-[#1F7A76]">⚙️</span> 訊號轉換五部曲 (Signal Pipeline)
+              </h4>
+              <ol class="text-xs space-y-2 text-[#5F6D76]">
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full bg-[#1E293B] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+                  <span><strong>偵測物理現象</strong>：雷射光束照射空氣微粒產生散射。</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full bg-[#1E293B] text-white flex items-center justify-center text-[10px] font-bold">2</span>
+                  <span><strong>轉換為電訊號</strong>：光電二極體產生微安培級光電流。</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full bg-[#1E293B] text-white flex items-center justify-center text-[10px] font-bold">3</span>
+                  <span><strong>放大與 ADC</strong>：運算放大器放大，ADC 轉換為數位碼。</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full bg-[#1E293B] text-white flex items-center justify-center text-[10px] font-bold">4</span>
+                  <span><strong>校準換算</strong>：內建微晶片依原廠曲線補償溫濕度漂移。</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full bg-[#1E293B] text-white flex items-center justify-center text-[10px] font-bold">5</span>
+                  <span><strong>數位通訊傳輸</strong>：以 I2C / UART 協定將精準數值傳予 MCU。</span>
+                </li>
+              </ol>
+            </div>
+
+            <!-- 核心概念與比喻 -->
+            <div class="flex flex-col justify-between space-y-3">
+              <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+                <h4 class="font-bold text-xs text-[#1F7A76] mb-1">感測器選型特點</h4>
+                <p class="text-xs text-[#1E293B] leading-relaxed">
+                  本案例選用 <strong>Sensirion SPS30</strong>，具備內部專屬抗積灰清潔風扇演算法，能同時計算 PM1.0、PM2.5、PM10 的質量濃度。
+                </p>
+              </div>
+
+              <div class="p-4 bg-[#FFFDF8] border-2 border-[#1E293B] rounded-xl">
+                <h4 class="font-black text-xs text-[#EAA053] mb-1">💡 新手生活化比喻</h4>
+                <p class="text-xs text-[#5F6D76] leading-relaxed">
+                  感測器就像晶片的「眼睛、鼻子與皮膚」―― 人類皮膚感受冷熱、鼻子聞到煙塵；感測器把空氣中肉眼看不到的微粒，精確翻譯成晶片能看懂的度量衡。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 4: 雙微控制器協同 ==================== -->
+      <section class="slide-page" data-source="wiki/01-mcu-basics.md" data-source-title="微控制器基礎與雙晶片分工">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 2 ・ 運算中樞</span>
+            <span class="text-xs bg-[#D8EBF5] text-[#457B9D] px-2.5 py-0.5 rounded-full font-bold">STM32 + ESP32</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            指揮官與偵察兵：<span class="u">STM32 與 ESP32 的雙腦默契</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-6">
+            高頻即時硬體控制與無線連網協定並存時，雙晶片分工是工業界的黃金標準：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <!-- STM32 卡片 -->
+            <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl relative">
+              <span class="absolute -top-3 right-3 text-xs bg-[#1E293B] text-white px-2 py-0.5 rounded font-bold">總指揮官</span>
+              <h3 class="text-lg font-black text-[#1E293B] mb-1">STM32 (Cortex-M4)</h3>
+              <p class="text-xs font-bold text-[#1F7A76] mb-2">專注於即時控制與演算法決策大腦</p>
+              <ul class="text-xs text-[#5F6D76] space-y-1.5 list-disc list-inside">
+                <li>運行滑動模態控制（SMC）與模糊控制（Fuzzy）。</li>
+                <li>以高階硬體定時器精確輸出 PWM 控制抽風馬達轉速。</li>
+                <li>中斷反應延遲達微秒級，保障系統硬體安全連鎖。</li>
+              </ul>
+            </div>
+
+            <!-- ESP32 卡片 -->
+            <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl relative">
+              <span class="absolute -top-3 right-3 text-xs bg-[#1F7A76] text-white px-2 py-0.5 rounded font-bold">通訊前哨</span>
+              <h3 class="text-lg font-black text-[#1E293B] mb-1">ESP32 (Wi-Fi & BLE)</h3>
+              <p class="text-xs font-bold text-[#457B9D] mb-2">前線數據採樣、濾波與網路閘道</p>
+              <ul class="text-xs text-[#5F6D76] space-y-1.5 list-disc list-inside">
+                <li>週期性向 SPS30 讀取 PM2.5 並進行滑動均值濾波。</li>
+                <li>將感測數據封裝為標準 JSON 格式字串。</li>
+                <li>透過 2.4 GHz Wi-Fi 以 MQTT 協定發布至雲端。</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 生活化比喻 -->
+          <div class="p-3 bg-[#FFFDF8] border-2 border-[#1E293B] rounded-lg">
+            <p class="text-xs text-[#1E293B]">
+              <strong class="text-[#EAA053]">💡 新手比喻：</strong>
+              <strong>STM32 就像「作戰指揮官」</strong>，坐在安全指揮部調度大局；<strong>ESP32 則是「前線偵察兵兼通訊員」</strong>，負責採集敵情灰塵並背著無線電向總部回報。兩者分工讓控制不卡頓、通訊不掉包！
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 5: JSON 格式 ==================== -->
+      <section class="slide-page" data-source="wiki/04-json-format.md" data-source-title="物聯網資料格式 JSON 與 Payload">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 3 ・ 資料封裝</span>
+            <span class="text-xs bg-[#FFFDF8] border border-[#1E293B] text-[#EAA053] px-2.5 py-0.5 rounded-full font-black">JSON Payload</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            標準化物流單：<span class="u">為什麼物聯網系統首選 JSON？</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-5">
+            在「傳輸效率」、「跨平台相容」與「除錯便利」三者之間取得最佳平衡：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <!-- 程式碼範例卡片 -->
+            <div class="bg-[#1E293B] text-[#F8F5EE] p-4 rounded-xl border-2 border-[#1E293B] shadow-inner">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-gray-700 text-xs">
+                <span class="text-[#FBE083] font-bold">● sensor_payload.json</span>
+                <span class="text-gray-400">ESP32 發送格式</span>
+              </div>
+              <pre class="text-xs leading-relaxed text-[#D9ECE9] overflow-x-auto"><code>{
+  "device_id": "ESP32_LAB_01",
+  "timestamp": 1732018800,
+  "data": {
+    "pm25": 24.5,
+    "temperature": 26.8,
+    "humidity": 58.2
+  },
+  "status": {
+    "fan_duty": 45,
+    "alert_level": "NORMAL"
+  }
+}</code></pre>
+            </div>
+
+            <!-- 3 大優勢特點 -->
+            <div class="space-y-2.5">
+              <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-lg">
+                <h4 class="font-bold text-xs text-[#1F7A76] mb-0.5">1. 跨語言原生相容</h4>
+                <p class="text-[11px] text-[#5F6D76]">ESP32 的 C++、伺服器的 Python、網頁的 JS 全都原生支援解析，無需額外轉譯層。</p>
+              </div>
+              <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-lg">
+                <h4 class="font-bold text-xs text-[#1E293B] mb-0.5">2. 自我描述與高可讀性</h4>
+                <p class="text-[11px] text-[#5F6D76]">Key-Value 結構清晰，工程師除錯時直接肉眼閱讀 Log，省去十六進位解碼痛苦。</p>
+              </div>
+              <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-lg">
+                <h4 class="font-bold text-xs text-[#457B9D] mb-0.5">3. 擴充不破壞向下相容</h4>
+                <p class="text-[11px] text-[#5F6D76]">未來新增 CO2 欄位時，舊版接收程式碼只需忽略未知 Key，系統依然穩健運作。</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 生活化比喻 -->
+          <div class="p-2.5 bg-[#FFFDF8] border-2 border-[#1E293B] rounded-lg text-xs text-[#5F6D76]">
+            <strong class="text-[#EAA053]">💡 生活化比喻：</strong>
+            JSON 就像貼在包裹外的「標準快遞托運單」，欄位清楚寫著寄件人是誰、重量幾公斤。不論各國海關講什麼語言，看到標準托運單立刻懂得如何派送。
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 6: MQTT 協定 ==================== -->
+      <section class="slide-page" data-source="wiki/03-mqtt-protocol.md" data-source-title="MQTT 物聯網通訊協定與 Pub/Sub">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 4 ・ 訊息派發</span>
+            <span class="text-xs bg-[#D8EBF5] text-[#457B9D] px-2.5 py-0.5 rounded-full font-bold">MQTT Pub / Sub</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            高效率推播：<span class="u">不用逐一打電話的 Pub / Sub 機制</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-5">
+            解耦發布者與接收者，固定標頭僅需 2 Bytes，專為資源受限物聯網而生：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            <!-- 發布者 -->
+            <div class="p-3.5 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-center">
+              <span class="text-xl">📡</span>
+              <h4 class="font-black text-sm text-[#1E293B] mt-1 mb-1">Publisher (發布者)</h4>
+              <p class="text-xs text-[#1F7A76] font-bold mb-1">ESP32 感測節點</p>
+              <p class="text-[11px] text-[#5F6D76]">只管將訊息推送給主題 <code>lab/env/pm25</code>，完全無需理會誰會接收。</p>
+            </div>
+            <!-- Broker -->
+            <div class="p-3.5 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl text-center relative shadow-sm">
+              <span class="text-xl">🏢</span>
+              <h4 class="font-black text-sm text-[#1F7A76] mt-1 mb-1">Broker (代理人伺服器)</h4>
+              <p class="text-xs text-[#1E293B] font-bold mb-1">Mosquitto / EMQX</p>
+              <p class="text-[11px] text-[#5F6D76]">訊息轉運中樞，負責維護連線，並精準推播給有登記該主題的訂閱者。</p>
+            </div>
+            <!-- 訂閱者 -->
+            <div class="p-3.5 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl text-center">
+              <span class="text-xl">💻</span>
+              <h4 class="font-black text-sm text-[#457B9D] mt-1 mb-1">Subscriber (訂閱者)</h4>
+              <p class="text-xs text-[#1E293B] font-bold mb-1">前端網頁 / 本地閘道器</p>
+              <p class="text-[11px] text-[#5F6D76]">向 Broker 登記感興趣主題，一旦有新資料即刻收到被動推播。</p>
+            </div>
+          </div>
+
+          <!-- 3 大重點 -->
+          <div class="bg-[#FFFDF8] border-2 border-[#1E293B] rounded-xl p-3.5 space-y-2">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="px-2 py-0.5 bg-[#FBE083] font-bold rounded text-[#1E293B]">極輕量標頭</span>
+              <span class="text-[#5F6D76]">相比 HTTP 龐大 Header，MQTT 標頭僅 2 Bytes，大幅節省電力與 4G/5G 流量。</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="px-2 py-0.5 bg-[#D9ECE9] font-bold rounded text-[#1F7A76]">靈活主題階層</span>
+              <span class="text-[#5F6D76]">支援 <code>+</code>（單層）與 <code>#</code>（多層）萬用字元，例如訂閱 <code>lab/#</code> 可接收整間實驗室所有設備。</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="px-2 py-0.5 bg-[#D8EBF5] font-bold rounded text-[#457B9D]">💡 生活化比喻</span>
+              <span class="text-[#5F6D76]">如同 YouTuber（發布者）把影片上傳到頻道（Topic），YouTube（Broker）自動向開啟小鈴鐺的觀眾（訂閱者）發送推播！</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 7: 資料視覺化 ==================== -->
+      <section class="slide-page" data-source="wiki/05-data-visualization.md" data-source-title="資料視覺化與即時儀表板實作">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 5 ・ 終端視覺化</span>
+            <span class="text-xs bg-[#FBE083] text-[#1E293B] px-2.5 py-0.5 rounded-full font-black">Chart.js & WebSockets</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            駕駛座的儀表板：<span class="u">前端視覺化與圖表動態渲染</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-5">
+            數據抵達終端瀏覽器後，透過三大步驟化為即時直觀畫面：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+            <div class="p-3 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-lg">
+              <div class="text-[#1F7A76] font-black text-sm mb-1">Step 1. 長連線接收</div>
+              <p class="text-xs text-[#5F6D76]">MQTT over WebSockets 建立持續雙向通道，摒棄重複 HTTP 輪詢。</p>
+            </div>
+            <div class="p-3 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-lg">
+              <div class="text-[#1E293B] font-black text-sm mb-1">Step 2. 解析與清洗</div>
+              <p class="text-xs text-[#5F6D76]"><code>JSON.parse()</code> 還原物件，並驗證 PM2.5 數值是否在合理物理區間。</p>
+            </div>
+            <div class="p-3 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-lg">
+              <div class="text-[#457B9D] font-black text-sm mb-1">Step 3. FIFO 佇列渲染</div>
+              <p class="text-xs text-[#5F6D76]">Chart.js 畫布保留最新 20 筆紀錄，先進先出推移更新平滑折線。</p>
+            </div>
+          </div>
+
+          <!-- 視覺化範例預覽 -->
+          <div class="bg-[#FFFDF8] border-2 border-[#1E293B] rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="space-y-1.5 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-bold text-[#1E293B]">即時狀態指標：正常 (PM2.5: 18.2 μg/m³)</span>
+              </div>
+              <div class="w-full bg-[#E2E8F0] h-3 rounded-full overflow-hidden border border-[#1E293B]">
+                <div class="bg-[#1F7A76] h-full w-[28%]"></div>
+              </div>
+              <p class="text-[11px] text-[#5F6D76]">抽風風門轉速：35% (SMC 滑動模態動態調整中)</p>
+            </div>
+            <div class="text-xs text-[#5F6D76] max-w-xs border-l-2 border-[#1E293B]/20 pl-3">
+              <strong class="text-[#1E293B]">💡 新手比喻：</strong>
+              就像超跑的數位儀表板，駕駛不需要懂得引擎噴油嘴的微安培電壓，只要輕瞄儀表板指針，就能立刻洞悉車況安全！
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 8: 端到端數據串聯實戰模擬 ==================== -->
+      <section class="slide-page" data-source="wiki/01-mcu-basics.md ~ wiki/05-data-visualization.md" data-source-title="端到端串聯驗證實作">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Module 6 ・ 互動模擬實戰</span>
+            <span class="text-xs bg-[#EAA053] text-white px-2.5 py-0.5 rounded-full font-bold">Interactive Sandbox</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            現場實戰：<span class="u">當感測器讀到 PM2.5 = 45 μg/m³ 時？</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-4">
+            點擊下方按鈕切換不同空氣品質情境，親身體驗數據如何流經五大站點：
+          </p>
+
+          <!-- 互動切換按鈕 -->
+          <div class="flex flex-wrap gap-2 mb-4">
+            <button onclick="setSimScenario('good')" class="btn-techo px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-600">
+              🌱 情境 A：優良空氣 (12 μg/m³)
+            </button>
+            <button onclick="setSimScenario('moderate')" class="btn-techo px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-600">
+              ⚠️ 情境 B：微幅超標 (45 μg/m³)
+            </button>
+            <button onclick="setSimScenario('hazardous')" class="btn-techo px-3 py-1 bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-600">
+              🚨 情境 C：嚴重污染 (88 μg/m³)
+            </button>
+          </div>
+
+          <!-- 即時動態模擬展示盒 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4">
+            <!-- 左欄：動態產生的 JSON 封包 -->
+            <div>
+              <div class="flex items-center justify-between text-xs font-bold text-[#1E293B] mb-1.5">
+                <span>📦 ESP32 打包 JSON 封包</span>
+                <span id="sim-status-badge" class="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold">NORMAL</span>
+              </div>
+              <pre class="bg-[#1E293B] text-[#D9ECE9] text-[11px] p-2.5 rounded-lg border border-[#1E293B] h-36 overflow-y-auto"><code id="sim-json-code">{
+  "device": "ESP32_01",
+  "pm25": 12.0,
+  "fan_speed": 20,
+  "alert": "NORMAL"
+}</code></pre>
+            </div>
+
+            <!-- 右欄：系統聯防即時狀態 -->
+            <div class="flex flex-col justify-between space-y-2">
+              <div>
+                <span class="text-xs font-bold text-[#1E293B] block mb-1">⚙️ STM32 決策大腦 (SMC 抽風馬達出力)</span>
+                <div class="w-full bg-[#E2E8F0] h-4 rounded-full overflow-hidden border border-[#1E293B] p-0.5">
+                  <div id="sim-fan-bar" class="bg-[#1F7A76] h-full rounded-full transition-all duration-500" style="width: 20%;"></div>
+                </div>
+                <div class="flex justify-between text-[11px] text-[#5F6D76] mt-0.5">
+                  <span>怠速 0%</span>
+                  <span id="sim-fan-text" class="font-bold text-[#1F7A76]">出力：20%</span>
+                  <span>全速 100%</span>
+                </div>
+              </div>
+
+              <div id="sim-alert-box" class="p-2.5 rounded-lg border border-[#1E293B] bg-[#FFFDF8] text-xs">
+                <strong id="sim-alert-title" class="text-emerald-700">✅ 系統狀態：優良</strong>
+                <p id="sim-alert-desc" class="text-[11px] text-[#5F6D76] mt-0.5">
+                  空氣品質清新，ESP32 維持每 5 秒發布一次心跳封包，STM32 排風機保持低速節能運轉。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 9: 總結與回顧 ==================== -->
+      <section class="slide-page" data-source="wiki/index.md" data-source-title="知識庫總目錄與回顧">
+        <div class="pt-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-black tracking-widest text-[#1F7A76] uppercase">Conclusion ・ 總結與核心思維</span>
+            <span class="text-xs bg-[#D9ECE9] text-[#1F7A76] px-2.5 py-0.5 rounded-full font-bold">Key Takeaways</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-[#1E293B] mb-2">
+            工程手帳回顧：<span class="u">構建穩健物聯網系統的三大基石</span>
+          </h2>
+          <p class="text-sm text-[#5F6D76] mb-6">
+            從這套「雙晶片 + MQTT + JSON + 網頁視覺化」架構中，我們學會的三個核心哲學：
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+              <div class="text-2xl mb-1">🎯</div>
+              <h4 class="font-black text-sm text-[#1E293B] mb-1">邊緣分工 (Edge Allocation)</h4>
+              <p class="text-xs text-[#5F6D76] leading-relaxed">
+                專門晶片做專門的事。STM32 負責高即時閉迴路決策，ESP32 負責聯網與採樣，確保控制零死角。
+              </p>
+            </div>
+            <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+              <div class="text-2xl mb-1">🔗</div>
+              <h4 class="font-black text-sm text-[#1F7A76] mb-1">鬆散耦合 (Loose Coupling)</h4>
+              <p class="text-xs text-[#5F6D76] leading-relaxed">
+                以 MQTT 與 JSON 為中介。網頁改版不必更動微控制器韌體；硬體升級感測器亦不破壞網頁前端。
+              </p>
+            </div>
+            <div class="p-4 bg-[#D8EBF5] border-2 border-[#1E293B] rounded-xl">
+              <div class="text-2xl mb-1">📖</div>
+              <h4 class="font-black text-sm text-[#457B9D] mb-1">手帳思維 (Engineering Rigor)</h4>
+              <p class="text-xs text-[#5F6D76] leading-relaxed">
+                建立標準化 Wiki 知識庫與 AGENTS.md 規則手冊，讓未來的 AI 與人類工程師都能無縫擴充系統。
+              </p>
+            </div>
+          </div>
+
+          <div class="p-4 bg-[#FFFDF8] border-2 border-[#1E293B] rounded-xl flex items-center justify-between">
+            <div>
+              <h5 class="text-xs font-bold text-[#1E293B]">想深入探討底層驅動程式碼與數學演算法？</h5>
+              <p class="text-[11px] text-[#5F6D76]">歡迎瀏覽本專案之 LLM Wiki 知識庫全文與第九週相關文章。</p>
+            </div>
+            <a href="../index.html" class="btn-techo px-3.5 py-1.5 bg-[#1F7A76] text-white rounded-lg text-xs font-bold whitespace-nowrap">
+              返回總目錄首頁 ↗
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 投影片底部固定狀態列 (Footer Status Bar) -->
+      <footer class="pt-6 mt-6 border-t-2 border-[#1E293B]/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#5F6D76]">
+        <!-- 左側：資料來源標籤 (落實 Wiki 溯源要求) -->
+        <div class="flex items-center gap-2">
+          <span class="inline-block px-2 py-0.5 rounded font-black bg-[#D9ECE9] text-[#1F7A76] border border-[#1F7A76]">
+            📌 資料來源
+          </span>
+          <span id="footer-source-label" class="font-mono text-xs font-semibold text-[#1E293B]">
+            wiki/index.md
+          </span>
+        </div>
+
+        <!-- 中間：頁碼圓點導航 -->
+        <div id="slide-dots-container" class="flex items-center gap-1.5">
+          <!-- 由 JavaScript 動態生成圓點 -->
+        </div>
+
+        <!-- 右側：鍵盤操作提示 -->
+        <div class="text-[11px] hidden md:block text-[#5F6D76]">
+          使用 <kbd class="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#1E293B] rounded text-[10px] font-mono">◀</kbd> / <kbd class="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#1E293B] rounded text-[10px] font-mono">▶</kbd> 切換投影片
+        </div>
+      </footer>
+
+    </div>
+
+  </main>
+
+  <!-- JavaScript 控制器 -->
+  <script>
+    const slides = document.querySelectorAll('.slide-page');
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const slideIndicator = document.getElementById('slide-indicator');
+    const topProgressBar = document.getElementById('top-progress-bar');
+    const footerSourceLabel = document.getElementById('footer-source-label');
+    const dotsContainer = document.getElementById('slide-dots-container');
+
+    // 初始化圓點導航
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('button');
+      dot.className = `w-2.5 h-2.5 rounded-full border border-[#1E293B] transition-all ${i === 0 ? 'bg-[#1F7A76] scale-125' : 'bg-transparent hover:bg-gray-300'}`;
+      dot.setAttribute('title', `跳至 Slide ${i + 1}`);
+      dot.onclick = () => goToSlide(i);
+      dotsContainer.appendChild(dot);
+    }
+
+    function updateSlideUI() {
+      slides.forEach((slide, idx) => {
+        if (idx === currentSlide) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+
+      // 更新頁碼指示
+      slideIndicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+
+      // 更新頂部進度條
+      const progressPercent = ((currentSlide + 1) / totalSlides) * 100;
+      topProgressBar.style.width = `${progressPercent}%`;
+
+      // 更新按鈕啟用狀態
+      btnPrev.disabled = (currentSlide === 0);
+      btnNext.disabled = (currentSlide === totalSlides - 1);
+
+      // 更新 Wiki 資料來源標籤
+      const currentActiveSlide = slides[currentSlide];
+      const sourceFile = currentActiveSlide.getAttribute('data-source') || 'wiki/index.md';
+      const sourceTitle = currentActiveSlide.getAttribute('data-source-title') || '';
+      footerSourceLabel.textContent = `${sourceFile} (${sourceTitle})`;
+
+      // 更新圓點
+      const dots = dotsContainer.children;
+      for (let i = 0; i < dots.length; i++) {
+        if (i === currentSlide) {
+          dots[i].className = 'w-2.5 h-2.5 rounded-full border border-[#1E293B] bg-[#1F7A76] scale-125';
+        } else {
+          dots[i].className = 'w-2.5 h-2.5 rounded-full border border-[#1E293B] bg-transparent hover:bg-gray-300';
+        }
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlideUI();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlideUI();
+      }
+    }
+
+    function goToSlide(index) {
+      if (index >= 0 && index < totalSlides) {
+        currentSlide = index;
+        updateSlideUI();
+      }
+    }
+
+    // 鍵盤導航監聽
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(totalSlides - 1);
+      }
+    });
+
+    // 觸控手勢滑動支援 (Swipe gesture for mobile)
+    let touchStartX = 0;
+    let touchEndX = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, false);
+    document.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, false);
+
+    function handleSwipe() {
+      const diff = touchEndX - touchStartX;
+      if (diff < -50) {
+        nextSlide();
+      } else if (diff > 50) {
+        prevSlide();
+      }
+    }
+
+    // Slide 8 互動模擬邏輯
+    function setSimScenario(type) {
+      const jsonCode = document.getElementById('sim-json-code');
+      const badge = document.getElementById('sim-status-badge');
+      const fanBar = document.getElementById('sim-fan-bar');
+      const fanText = document.getElementById('sim-fan-text');
+      const alertTitle = document.getElementById('sim-alert-title');
+      const alertDesc = document.getElementById('sim-alert-desc');
+      const alertBox = document.getElementById('sim-alert-box');
+
+      if (type === 'good') {
+        jsonCode.textContent = JSON.stringify({
+          "device": "ESP32_01",
+          "pm25": 12.0,
+          "fan_speed": 20,
+          "alert": "NORMAL"
+        }, null, 2);
+        badge.className = "px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold";
+        badge.textContent = "NORMAL";
+        fanBar.style.width = "20%";
+        fanBar.className = "bg-[#1F7A76] h-full rounded-full transition-all duration-500";
+        fanText.textContent = "出力：20%";
+        fanText.className = "font-bold text-[#1F7A76]";
+        alertBox.className = "p-2.5 rounded-lg border border-emerald-500 bg-emerald-50 text-xs";
+        alertTitle.className = "text-emerald-700 font-bold";
+        alertTitle.textContent = "✅ 系統狀態：優良 (PM2.5: 12.0 μg/m³)";
+        alertDesc.textContent = "空氣品質清新，ESP32 維持每 5 秒發布一次心跳封包，STM32 排風機保持低速節能運轉。";
+      } else if (type === 'moderate') {
+        jsonCode.textContent = JSON.stringify({
+          "device": "ESP32_01",
+          "pm25": 45.0,
+          "fan_speed": 65,
+          "alert": "WARNING"
+        }, null, 2);
+        badge.className = "px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-bold";
+        badge.textContent = "WARNING";
+        fanBar.style.width = "65%";
+        fanBar.className = "bg-[#EAA053] h-full rounded-full transition-all duration-500";
+        fanText.textContent = "出力：65%";
+        fanText.className = "font-bold text-[#EAA053]";
+        alertBox.className = "p-2.5 rounded-lg border border-amber-500 bg-amber-50 text-xs";
+        alertTitle.className = "text-amber-700 font-bold";
+        alertTitle.textContent = "⚠️ 系統狀態：中度警戒 (PM2.5: 45.0 μg/m³)";
+        alertDesc.textContent = "偵測到懸浮微粒濃度升高，STM32 根據滑動模態演算法將抽風馬達出力提升至 65%，網頁儀表板閃爍黃色警戒！";
+      } else if (type === 'hazardous') {
+        jsonCode.textContent = JSON.stringify({
+          "device": "ESP32_01",
+          "pm25": 88.5,
+          "fan_speed": 100,
+          "alert": "DANGER"
+        }, null, 2);
+        badge.className = "px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-700 font-bold";
+        badge.textContent = "DANGER";
+        fanBar.style.width = "100%";
+        fanBar.className = "bg-rose-600 h-full rounded-full transition-all duration-500";
+        fanText.textContent = "出力：100% (全速緊急抽風)";
+        fanText.className = "font-bold text-rose-600";
+        alertBox.className = "p-2.5 rounded-lg border border-rose-500 bg-rose-50 text-xs";
+        alertTitle.className = "text-rose-700 font-bold";
+        alertTitle.textContent = "🚨 系統狀態：危險超標 (PM2.5: 88.5 μg/m³)";
+        alertDesc.textContent = "空氣品質嚴重超標！STM32 觸發緊急全速抽風並啟動安全連鎖蜂鳴器，MQTT Broker 向所有訂閱者推播緊急疏散事件！";
+      }
+    }
+
+    // 初始化介面
+    updateSlideUI();
+  </script>
+</body>
+</html>
+

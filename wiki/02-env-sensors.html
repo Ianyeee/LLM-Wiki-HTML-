@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>02. 環境感測器與訊號轉換 - IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="Sensirion SPS30 與 SHT20 感測訊號轉換五部曲與腳位接線對應。">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --paper-bg: #F8F5EE;
+      --card-bg: #FFFDF8;
+      --ink: #1E293B;
+      --ink-muted: #5F6D76;
+      --pcb-teal: #1F7A76;
+      --pcb-teal-soft: #D9ECE9;
+      --kapton-amber: #EAA053;
+      --ribbon-blue: #457B9D;
+      --highlighter: #FBE083;
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] px-4 sm:px-8 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-[#1F7A76] text-white flex items-center justify-center font-black text-sm border-2 border-[#1E293B]">
+            W2
+          </span>
+          <span class="font-black text-[#1E293B] text-base" style="font-family:var(--round)">
+            IoT &amp; Embedded Wiki
+          </span>
+        </a>
+      </div>
+      <div class="flex items-center gap-3 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="index.html" class="px-2.5 py-1 text-[#5F6D76] hover:text-[#1E293B]">
+          ⬅ 返回目錄
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+          <span>🎯</span>
+          <span>播放簡報</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <article class="lab-card p-6 sm:p-10 mb-8">
+      <span class="tape-kapton"></span>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1F7A76] text-white border-2 border-[#1E293B]">
+          WIKI-02
+        </span>
+        <span class="text-xs text-[#5F6D76]">感測介面與訊號處理</span>
+        <span class="text-xs text-[#5F6D76]">・ 更新日期：2026-11-19</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+        02. 環境感測器與訊號轉換 <span class="u">(Sensor Conversion)</span>
+      </h1>
+      <div class="ruler-divider"></div>
+
+      <div class="bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl p-4 mb-8 text-sm">
+        <strong>Overview 簡介：</strong>
+        真實世界的物理量（粉塵、溫度、濕度）皆為連續變化的類比訊號，感測器的使命是透過「偵測 ➔ 轉換電訊號 ➔ 放大/ADC ➔ 校準 ➔ 數位傳輸」五步驟，將物理現象翻譯為微控制器看得懂的數位資料。
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">1. 數據取得的完整五部曲 (The 5-Step Signal Pipeline)</h2>
+      
+      <pre class="bg-[#1E293B] text-[#D9ECE9] p-4 rounded-xl text-xs overflow-x-auto mb-6 leading-relaxed"><code>+---------------------------------------------------------------------------------+
+|                           感測訊號完整轉換流程管道                              |
+|                                                                                 |
+| 1. 物理現象      2. 轉換為電訊號     3. 放大與 ADC     4. 校準換算       5. 數位傳輸  |
+| [空氣懸浮微粒] ──▶ [光電二極體微電流] ──▶ [運算放大器/ADC] ──▶ [內建微處理補償] ──▶ [I2C/UART] |
+|                                                                                 |
++---------------------------------------------------------------------------------+</code></pre>
+
+      <ol class="text-xs sm:text-sm text-[#5F6D76] space-y-2 mb-8 list-decimal list-inside">
+        <li><strong>偵測物理現象</strong>：感測器探針或光學腔體與外界環境接觸（如 PM2.5 穿過雷射光束）。</li>
+        <li><strong>轉換為電訊號</strong>：感測元件將微小物理變化轉為微弱電壓差或微安培級光電流。</li>
+        <li><strong>放大與類比轉數位 (ADC)</strong>：經由運算放大器放大，ADC 以固定採樣頻率轉為離散二進位碼。</li>
+        <li><strong>校準與換算</strong>：微處理器依原廠校正參數考量溫濕度漂移，換算為標準單位（μg/m³ 或 °C）。</li>
+        <li><strong>數位通訊傳輸</strong>：透過 I2C 匯流排或 UART 序列埠，封裝成暫存器字組傳送給主控 MCU。</li>
+      </ol>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">2. 代表性感測元件特點</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-sm text-[#1E293B] mb-1">Sensirion SPS30 (光學 PM2.5)</h4>
+          <p class="text-xs text-[#5F6D76] leading-relaxed">
+            雷射散射原理（Laser Scattering）。內建清潔微型風扇引導氣流，微處理器自動區分 PM1.0/2.5/4.0/10，抗積灰自我清潔。
+          </p>
+        </div>
+        <div class="p-4 bg-[#D9ECE9] border-2 border-[#1E293B] rounded-xl">
+          <h4 class="font-bold text-sm text-[#1F7A76] mb-1">Sensirion SHT20 (溫濕度)</h4>
+          <p class="text-xs text-[#5F6D76] leading-relaxed">
+            電容式濕度元件與能隙式溫度元件。以標準 I2C 介面輸出，具備 CRC 校驗碼保護，抗電磁干擾能力優異。
+          </p>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">3. 典型接線對應表 (Pinout Mapping)</h2>
+      <div class="overflow-x-auto mb-8">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm border-2 border-[#1E293B] rounded-xl overflow-hidden">
+          <thead>
+            <tr class="bg-[#1E293B] text-white">
+              <th class="p-3">感測器引腳</th>
+              <th class="p-3">ESP32 接腳</th>
+              <th class="p-3">訊號型態</th>
+              <th class="p-3">功能說明</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#D8D2C4] bg-[#FFFDF8]">
+            <tr>
+              <td class="p-3 font-bold">SPS30 Pin 1 (VDD)</td>
+              <td class="p-3">5V / VIN</td>
+              <td class="p-3">Power</td>
+              <td class="p-3">供電電壓 (5V DC 驅動風扇與雷射)</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">SPS30 Pin 2 (RX)</td>
+              <td class="p-3">GPIO 17 (TX2)</td>
+              <td class="p-3">UART Input</td>
+              <td class="p-3">ESP32 發送測量指令與清潔命令</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">SPS30 Pin 3 (TX)</td>
+              <td class="p-3">GPIO 16 (RX2)</td>
+              <td class="p-3">UART Output</td>
+              <td class="p-3">SPS30 回傳 PM2.5 測量數據封包</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">SHT20 SDA</td>
+              <td class="p-3">GPIO 21</td>
+              <td class="p-3">I2C Data</td>
+              <td class="p-3">雙向數據傳輸線 (需 4.7kΩ 上拉電阻)</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold">SHT20 SCL</td>
+              <td class="p-3">GPIO 22</td>
+              <td class="p-3">I2C Clock</td>
+              <td class="p-3">I2C 時脈訊號線 (標準 100 kHz)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="text-xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">4. 新手生活化比喻 (Novice Analogy)</h2>
+      <div class="p-4 bg-[#F8F5EE] border-2 border-[#1E293B] rounded-xl text-xs sm:text-sm leading-relaxed text-[#1E293B]">
+        <strong class="text-[#EAA053] text-base block mb-1">💡 系統的「靈敏五官與翻譯官」：</strong>
+        感測器就像是整個物聯網設備的「眼睛、鼻子與皮膚」―― 人類的皮膚感受到冷熱、鼻子聞到煙霧，神經系統會把它轉成大腦的神經電脈衝；感測器也是如此，它把空氣中肉眼看不到的懸浮顆粒，透過光線折射翻譯成精確的「數字刻度」，讓只懂二進位數字的單晶片大腦能夠洞察外界環境的微小變化。
+      </div>
+
+    </article>
+
+    <div class="flex justify-between items-center text-xs sm:text-sm font-bold">
+      <a href="01-mcu-basics.html" class="btn-techo px-4 py-2 bg-[#FFFDF8] rounded-xl text-[#1E293B]">
+        ⬅ 上一篇：01. 微控制器
+      </a>
+      <a href="03-mqtt-protocol.html" class="btn-techo px-4 py-2 bg-[#1F7A76] text-white rounded-xl">
+        下一篇：03. MQTT 協定 ➔
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-center text-xs text-[#7A8E9B]">
+    IoT &amp; Embedded Wiki ・ 國立臺中科技大學 資工四A 王庭翊
+  </footer>
+
+</body>
+</html>
+

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Wiki 知識庫總目錄 ・ IoT &amp; Embedded Wiki</title>
+  <meta name="description" content="個人嵌入式硬體韌體、通訊協定與控制演算法手帳風 LLM Wiki 知識庫。">
+  
+  <!-- Google Fonts: 導入日系圓體、思源黑體與 JetBrains Mono 等寬代碼字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Mermaid.js CDN (自動渲染流程圖) -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  </script>
+
+  <style>
+    :root {
+      /* 基底紙本色系 */
+      --paper-bg: #F8F5EE;          /* 燕麥工程圖紙底色 */
+      --card-bg: #FFFDF8;           /* 手帳紙白卡片 */
+      --ink: #1E293B;               /* 石墨深藍黑 */
+      --ink-muted: #5F6D76;         /* 內文說明灰 */
+
+      /* 專屬硬體標籤與膠帶色彩 */
+      --pcb-teal: #1F7A76;          /* PCB 電路板松石綠 (主題品牌色) */
+      --pcb-teal-soft: #D9ECE9;     /* 淺松綠標籤底色 */
+      --kapton-amber: #EAA053;      /* 金手指耐熱膠帶琥珀金 */
+      --ribbon-blue: #457B9D;       /* 杜邦排線藍 */
+      --ribbon-blue-soft: #D8EBF5;  /* 淺排線藍底色 */
+      --copper-blush: #ECA1A6;      /* 銅箔粉紅 */
+      --highlighter: #FBE083;       /* 工程螢光筆劃線黃 */
+
+      --round: "M PLUS Rounded 1c", "Noto Sans TC", sans-serif;
+      --body: "Noto Sans TC", "M PLUS Rounded 1c", sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    /* 24px 實驗室精密工程方格圖紙 */
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      min-height: 100vh;
+      background-color: var(--paper-bg);
+      background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      line-height: 1.7;
+    }
+
+    .u {
+      background: linear-gradient(transparent 58%, var(--highlighter) 58%);
+      padding: 0 6px;
+      border-radius: 2px;
+    }
+
+    .ruler-divider {
+      width: 140px;
+      height: 8px;
+      margin: 12px 0 24px;
+      background: 
+        repeating-linear-gradient(90deg, var(--pcb-teal) 0, var(--pcb-teal) 2px, transparent 2px, transparent 10px),
+        linear-gradient(var(--kapton-amber), var(--kapton-amber));
+      background-size: 100% 4px, 100% 2px;
+      background-position: bottom, top;
+      background-repeat: no-repeat;
+    }
+
+    .tape-kapton {
+      position: absolute;
+      top: -13px;
+      left: 28px;
+      width: 100px;
+      height: 26px;
+      background: var(--kapton-amber);
+      opacity: 0.85;
+      border-radius: 3px;
+      transform: rotate(-3deg);
+      box-shadow: 0 2px 4px rgba(30, 41, 59, 0.12);
+      z-index: 2;
+    }
+    .tape-blue {
+      background: var(--ribbon-blue);
+      opacity: 0.78;
+      transform: rotate(3deg);
+    }
+
+    .lab-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      border: 2.5px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 5px 5px 0 rgba(30, 41, 59, 0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .lab-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 7px 7px 0 rgba(30, 41, 59, 0.2);
+    }
+
+    .btn-techo {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-techo:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4.5px 4.5px 0 var(--ink);
+    }
+
+    pre, code {
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- 置頂導覽列 -->
+  <nav class="sticky top-0 z-40 bg-[#FFFDF8]/95 backdrop-blur border-b-2 border-[#1E293B] shadow-[0_2px_10px_rgba(30,41,59,0.06)] px-4 sm:px-8 py-3">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 group">
+          <span class="w-8 h-8 rounded-lg bg-[#1F7A76] text-white flex items-center justify-center font-black text-sm border-2 border-[#1E293B] shadow-[2px_2px_0_var(--ink)]">
+            W
+          </span>
+          <div class="flex flex-col">
+            <span class="font-black text-[#1E293B] text-base group-hover:text-[#1F7A76] transition-colors" style="font-family:var(--round)">
+              IoT &amp; Embedded Wiki
+            </span>
+            <span class="text-[10px] text-[#5F6D76] font-bold">LLM Knowledge Base Master Index</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-extrabold" style="font-family:var(--round)">
+        <a href="../index.html" class="px-3 py-1 text-[#5F6D76] hover:text-[#1E293B] hover:underline">
+          ⬅ 返回首頁
+        </a>
+        <a href="../slides/iot-intro.html" class="btn-techo bg-[#1F7A76] text-white px-3.5 py-1.5 rounded-lg flex items-center gap-1.5">
+          <span>🎯</span>
+          <span>播放教學簡報</span>
+        </a>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- 內容主體 -->
+  <main class="max-w-5xl mx-auto px-5 sm:px-8 py-10 flex-grow w-full">
+
+    <!-- 標題便籤區 -->
+    <header class="mb-10 relative">
+      <div class="lab-card p-6 sm:p-8 bg-[#FFFDF8]">
+        <span class="tape-kapton"></span>
+        <span class="tape-kapton tape-blue" style="left:auto; right:28px;"></span>
+
+        <div class="flex flex-wrap items-center gap-2 mb-3 pt-2">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1F7A76] text-white border-2 border-[#1E293B]">
+            WIKI-INDEX
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#D9ECE9] text-[#1F7A76] border border-[#1F7A76]">
+            v1.2.0 (第十週擴充版)
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#FBE083] text-[#1E293B] border border-[#1E293B]">
+            AI 檢索唯一真理來源
+          </span>
+        </div>
+
+        <h1 class="text-3xl sm:text-4xl font-black text-[#1E293B] mb-3" style="font-family:var(--round)">
+          LLM Wiki <span class="u">知識庫總目錄</span>
+        </h1>
+        <p class="text-sm sm:text-base text-[#5F6D76] leading-relaxed mb-4">
+          本知識庫為物聯網與微控制器技術手帳的核心大腦，收錄 5 篇結構化技術文檔。所有內容均包含核心概念、硬體參數、通訊封包與新手生活化比喻，專供 AI 代理人檢索與生成教學型投影片。
+        </p>
+
+        <div class="flex items-center gap-4 text-xs text-[#5F6D76] pt-3 border-t border-[#1E293B]/20">
+          <span><strong>維護者：</strong>國立臺中科技大學 資工四A 王庭翊 (1311432014)</span>
+          <span><strong>格式：</strong>Markdown / HTML5 雙軌支援</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 5 大核心知識庫文章總表 -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2.5 mb-2">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">核心文章目錄 (Knowledge Catalog)</h2>
+      </div>
+      <div class="ruler-divider"></div>
+
+      <div class="overflow-x-auto bg-[#FFFDF8] border-[2.5px] border-[#1E293B] rounded-2xl shadow-[4px_4px_0_rgba(30,41,59,0.15)] p-4 sm:p-6 mb-8">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="border-b-2 border-[#1E293B] bg-[#F8F5EE]">
+              <th class="p-3 font-black text-[#1E293B]">文章檔名</th>
+              <th class="p-3 font-black text-[#1E293B]">主題名稱</th>
+              <th class="p-3 font-black text-[#1E293B] hidden md:table-cell">所屬領域</th>
+              <th class="p-3 font-black text-[#1E293B] hidden sm:table-cell">關鍵技術與硬體</th>
+              <th class="p-3 font-black text-[#1E293B]">新手生活化比喻</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#D8D2C4]">
+            
+            <tr class="hover:bg-[#F8F5EE]/60 transition-colors">
+              <td class="p-3 font-mono font-bold text-[#1F7A76]">
+                <a href="01-mcu-basics.html" class="underline hover:text-[#165a57]" title="檢視網頁版">01-mcu-basics.html</a>
+              </td>
+              <td class="p-3 font-bold text-[#1E293B]">
+                <a href="01-mcu-basics.html" class="hover:underline">微控制器基礎 (MCU)</a>
+              </td>
+              <td class="p-3 text-[#5F6D76] hidden md:table-cell">邊緣運算與晶片控制</td>
+              <td class="p-3 text-xs hidden sm:table-cell">STM32F4, ESP32, 雙晶片協同, ARM Cortex-M4</td>
+              <td class="p-3 font-semibold text-[#EAA053]">總指揮官 與 前線偵察兵</td>
+            </tr>
+
+            <tr class="hover:bg-[#F8F5EE]/60 transition-colors">
+              <td class="p-3 font-mono font-bold text-[#1F7A76]">
+                <a href="02-env-sensors.html" class="underline hover:text-[#165a57]" title="檢視網頁版">02-env-sensors.html</a>
+              </td>
+              <td class="p-3 font-bold text-[#1E293B]">
+                <a href="02-env-sensors.html" class="hover:underline">環境感測器與訊號轉換</a>
+              </td>
+              <td class="p-3 text-[#5F6D76] hidden md:table-cell">感測介面與訊號處理</td>
+              <td class="p-3 text-xs hidden sm:table-cell">SPS30, SHT20, 雷射散射, ADC 轉換, I2C/UART</td>
+              <td class="p-3 font-semibold text-[#EAA053]">系統的靈敏五官 與 翻譯官</td>
+            </tr>
+
+            <tr class="hover:bg-[#F8F5EE]/60 transition-colors">
+              <td class="p-3 font-mono font-bold text-[#1F7A76]">
+                <a href="03-mqtt-protocol.html" class="underline hover:text-[#165a57]" title="檢視網頁版">03-mqtt-protocol.html</a>
+              </td>
+              <td class="p-3 font-bold text-[#1E293B]">
+                <a href="03-mqtt-protocol.html" class="hover:underline">MQTT 物聯網通訊協定</a>
+              </td>
+              <td class="p-3 text-[#5F6D76] hidden md:table-cell">網路通訊與訊息佇列</td>
+              <td class="p-3 text-xs hidden sm:table-cell">MQTT, Pub/Sub, Broker, Mosquitto, QoS</td>
+              <td class="p-3 font-semibold text-[#EAA053]">YouTube 頻道 與 小鈴鐺推播</td>
+            </tr>
+
+            <tr class="hover:bg-[#F8F5EE]/60 transition-colors">
+              <td class="p-3 font-mono font-bold text-[#1F7A76]">
+                <a href="04-json-format.html" class="underline hover:text-[#165a57]" title="檢視網頁版">04-json-format.html</a>
+              </td>
+              <td class="p-3 font-bold text-[#1E293B]">
+                <a href="04-json-format.html" class="hover:underline">物聯網資料格式 JSON</a>
+              </td>
+              <td class="p-3 text-[#5F6D76] hidden md:table-cell">序列化與封包格式</td>
+              <td class="p-3 text-xs hidden sm:table-cell">JSON, Key-Value, ArduinoJson, Payload</td>
+              <td class="p-3 font-semibold text-[#EAA053]">國際標準化快遞包裹托運單</td>
+            </tr>
+
+            <tr class="hover:bg-[#F8F5EE]/60 transition-colors">
+              <td class="p-3 font-mono font-bold text-[#1F7A76]">
+                <a href="05-data-visualization.html" class="underline hover:text-[#165a57]" title="檢視網頁版">05-data-visualization.html</a>
+              </td>
+              <td class="p-3 font-bold text-[#1E293B]">
+                <a href="05-data-visualization.html" class="hover:underline">資料視覺化與儀表板實作</a>
+              </td>
+              <td class="p-3 text-[#5F6D76] hidden md:table-cell">前端視覺化與人機介面</td>
+              <td class="p-3 text-xs hidden sm:table-cell">WebSockets, Chart.js, Canvas, FIFO 佇列</td>
+              <td class="p-3 font-semibold text-[#EAA053]">超跑駕駛座全數位動態儀表板</td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 端到端資料流向圖 (Mermaid Rendered Graph) -->
+    <section class="mb-12">
+      <div class="flex items-center gap-2.5 mb-2">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">資料流向與架構地圖 (System Dataflow Graph)</h2>
+      </div>
+      <div class="ruler-divider"></div>
+
+      <div class="lab-card p-6 bg-[#FFFDF8] mb-6">
+        <p class="text-xs text-[#5F6D76] mb-4">
+          下圖展示數據如何從物理環境經過 5 大 Wiki 模組，最終即時呈現在網頁儀表板上：
+        </p>
+        <div class="mermaid text-center overflow-x-auto py-2">
+flowchart LR
+    subgraph S1["環境感測 [wiki/02]"]
+        A["真實物理現象\n(PM2.5 / 溫濕度)"] --> B["SPS30 / SHT20\n(ADC + 內部校準)"]
+    end
+
+    subgraph S2["微控制器協同 [wiki/01]"]
+        B -->|I2C / UART| C["ESP32 偵察兵\n(採樣 + 濾波)"]
+        C -->|UART 原始數據| D["STM32 總指揮\n(SMC 演算法 + 決策大腦)"]
+    end
+
+    subgraph S3["格式序列化 [wiki/04]"]
+        C -->|打包為 Key-Value| E["JSON 封包 Payload\n(標準物流托運單)"]
+    end
+
+    subgraph S4["訊息發布 [wiki/03]"]
+        E -->|MQTT Publish| F["MQTT Broker 轉運站\n(Mosquitto / Topic)"]
+    end
+
+    subgraph S5["終端呈現 [wiki/05]"]
+        F -->|WebSocket 推播| G["網頁即時儀表板\n(Chart.js 畫布圖表)"]
+    end
+
+    style S1 fill:#F8F5EE,stroke:#1E293B,stroke-width:2px
+    style S2 fill:#D9ECE9,stroke:#1F7A76,stroke-width:2px
+    style S3 fill:#FFFDF8,stroke:#EAA053,stroke-width:2px
+    style S4 fill:#D8EBF5,stroke:#457B9D,stroke-width:2px
+    style S5 fill:#FBE083,stroke:#1E293B,stroke-width:2px
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 篇文檔獨立手帳卡片 -->
+    <section class="space-y-6 mb-12">
+      <div class="flex items-center gap-2.5 mb-2">
+        <span class="text-[#EAA053] text-lg font-black">✦</span>
+        <h2 class="text-2xl font-black text-[#1E293B]" style="font-family:var(--round)">文檔內容預覽 (Article Previews)</h2>
+      </div>
+      <div class="ruler-divider"></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- 卡片 1 -->
+        <div class="lab-card p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-[#1F7A76] bg-[#D9ECE9] px-2 py-0.5 rounded">WIKI-01</span>
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <a href="01-mcu-basics.html" class="font-bold text-[#1F7A76] hover:underline">🌐 網頁版</a>
+              <span class="text-gray-300">|</span>
+              <a href="01-mcu-basics.md" class="text-[#5F6D76] hover:text-[#1E293B]" title="檢視 Markdown 原文">📄 MD</a>
+            </div>
+          </div>
+          <h3 class="text-lg font-black text-[#1E293B] mb-2" style="font-family:var(--round)">
+            <a href="01-mcu-basics.html" class="hover:text-[#1F7A76] hover:underline transition-colors">01. 微控制器基礎 (MCU Basics)</a>
+          </h3>
+          <p class="text-xs text-[#5F6D76] leading-relaxed mb-3">
+            解析 STM32（Cortex-M4 決策大腦，負責 SMC 與風門控制）與 ESP32（Wi-Fi 通訊前哨，負責感測採樣）之雙晶片架構分工。
+          </p>
+          <div class="bg-[#F8F5EE] border border-[#1E293B]/20 p-2.5 rounded-lg text-[11px] text-[#1E293B]">
+            💡 <strong>生活化比喻：</strong> 作戰司令部的「總指揮官」與前線背著無線電的「偵察兵」。
+          </div>
+        </div>
+
+        <!-- 卡片 2 -->
+        <div class="lab-card p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-[#1F7A76] bg-[#D9ECE9] px-2 py-0.5 rounded">WIKI-02</span>
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <a href="02-env-sensors.html" class="font-bold text-[#1F7A76] hover:underline">🌐 網頁版</a>
+              <span class="text-gray-300">|</span>
+              <a href="02-env-sensors.md" class="text-[#5F6D76] hover:text-[#1E293B]" title="檢視 Markdown 原文">📄 MD</a>
+            </div>
+          </div>
+          <h3 class="text-lg font-black text-[#1E293B] mb-2" style="font-family:var(--round)">
+            <a href="02-env-sensors.html" class="hover:text-[#1F7A76] hover:underline transition-colors">02. 環境感測器與訊號轉換</a>
+          </h3>
+          <p class="text-xs text-[#5F6D76] leading-relaxed mb-3">
+            詳細定義數據取得的完整五部曲：物理現象 ➔ 轉為電訊號 ➔ 放大與 ADC ➔ 校準換算 ➔ 數位匯流排（I2C/UART）傳輸。
+          </p>
+          <div class="bg-[#F8F5EE] border border-[#1E293B]/20 p-2.5 rounded-lg text-[11px] text-[#1E293B]">
+            💡 <strong>生活化比喻：</strong> 晶片的「靈敏五官與翻譯官」，把灰塵翻譯成二進位刻度。
+          </div>
+        </div>
+
+        <!-- 卡片 3 -->
+        <div class="lab-card p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-[#457B9D] bg-[#D8EBF5] px-2 py-0.5 rounded">WIKI-03</span>
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <a href="03-mqtt-protocol.html" class="font-bold text-[#457B9D] hover:underline">🌐 網頁版</a>
+              <span class="text-gray-300">|</span>
+              <a href="03-mqtt-protocol.md" class="text-[#5F6D76] hover:text-[#1E293B]" title="檢視 Markdown 原文">📄 MD</a>
+            </div>
+          </div>
+          <h3 class="text-lg font-black text-[#1E293B] mb-2" style="font-family:var(--round)">
+            <a href="03-mqtt-protocol.html" class="hover:text-[#457B9D] hover:underline transition-colors">03. MQTT 物聯網通訊協定</a>
+          </h3>
+          <p class="text-xs text-[#5F6D76] leading-relaxed mb-3">
+            解析發布/訂閱（Pub/Sub）解耦架構、Topic 階層路徑（支援 <code>+</code> / <code>#</code> 萬用字元）與 2 Bytes 極度輕量標頭優勢。
+          </p>
+          <div class="bg-[#F8F5EE] border border-[#1E293B]/20 p-2.5 rounded-lg text-[11px] text-[#1E293B]">
+            💡 <strong>生活化比喻：</strong> 像 YouTube 頻道創作者發片，平台向開啟小鈴鐺的觀眾推播通知。
+          </div>
+        </div>
+
+        <!-- 卡片 4 -->
+        <div class="lab-card p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-[#EAA053] bg-[#FFFDF8] border border-[#EAA053] px-2 py-0.5 rounded">WIKI-04</span>
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <a href="04-json-format.html" class="font-bold text-[#EAA053] hover:underline">🌐 網頁版</a>
+              <span class="text-gray-300">|</span>
+              <a href="04-json-format.md" class="text-[#5F6D76] hover:text-[#1E293B]" title="檢視 Markdown 原文">📄 MD</a>
+            </div>
+          </div>
+          <h3 class="text-lg font-black text-[#1E293B] mb-2" style="font-family:var(--round)">
+            <a href="04-json-format.html" class="hover:text-[#EAA053] hover:underline transition-colors">04. 物聯網資料格式 JSON</a>
+          </h3>
+          <p class="text-xs text-[#5F6D76] leading-relaxed mb-3">
+            深入探討為何 JSON 能在輕量傳輸、跨 C/Python/JS 相容與肉眼除錯便利之間取得最佳平衡，附帶真實 Payload。
+          </p>
+          <div class="bg-[#F8F5EE] border border-[#1E293B]/20 p-2.5 rounded-lg text-[11px] text-[#1E293B]">
+            💡 <strong>生活化比喻：</strong> 像貼在包裹上的「標準化快遞托運單」，收件人看單就知道裡面裝什麼。
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 卡片 5 (滿版) -->
+      <div class="lab-card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-[#1E293B] bg-[#FBE083] px-2 py-0.5 rounded">WIKI-05</span>
+          <div class="flex items-center gap-2 text-xs font-mono">
+            <a href="05-data-visualization.html" class="font-bold text-[#1E293B] hover:underline">🌐 網頁版</a>
+            <span class="text-gray-300">|</span>
+            <a href="05-data-visualization.md" class="text-[#5F6D76] hover:text-[#1E293B]" title="檢視 Markdown 原文">📄 MD</a>
+          </div>
+        </div>
+        <h3 class="text-lg font-black text-[#1E293B] mb-2" style="font-family:var(--round)">
+          <a href="05-data-visualization.html" class="hover:text-[#1F7A76] hover:underline transition-colors">05. 資料視覺化與即時儀表板實作</a>
+        </h3>
+        <p class="text-xs text-[#5F6D76] leading-relaxed mb-3">
+          剖析數據抵達終端後的三大步驟：MQTT over WebSockets 即時接收 ➔ <code>JSON.parse()</code> 解析過濾 ➔ FIFO 佇列驅動 Chart.js 畫布渲染。
+        </p>
+        <div class="bg-[#F8F5EE] border border-[#1E293B]/20 p-2.5 rounded-lg text-[11px] text-[#1E293B]">
+          💡 <strong>生活化比喻：</strong> 像超跑的「全數位多功能儀表板」，不需看底層電壓，瞄一眼指針就能洞悉車況安全。
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="mt-16 border-t-2 border-dashed border-[#D8D2C4] bg-[#FFFDF8] py-8 text-sm text-[#7A8E9B]">
+    <div class="max-w-5xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-black text-[#1E293B]" style="font-family:var(--round)">IoT &amp; Embedded Wiki</span>
+        <span>・ LLM Wiki Master Index</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="../slides/iot-intro.html" class="font-bold text-[#1F7A76] hover:underline">
+          播放教學簡報 ▶
+        </a>
+        <a href="../index.html" class="font-bold text-[#5F6D76] hover:text-[#1E293B]">
+          返回專案首頁
+        </a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+
